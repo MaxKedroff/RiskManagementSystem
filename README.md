@@ -19,8 +19,6 @@ Set `PGPASSWORD` securely for `psql` if required. Never commit credentials.
 
 Endpoints:
 - `GET /health`
-- `GET /api/risks?limit=50`
-- `GET /api/risks/{id}`
 
 ## Dependencies
 Domain -> none; Application -> Domain; Infrastructure -> Application + Domain;
