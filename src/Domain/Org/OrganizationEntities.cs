@@ -9,6 +9,14 @@ public sealed class Directorate : Entity
 
     private Directorate() { }
 
+    public static Directorate Rehydrate(int id, string title, bool isActive)
+    {
+        var directorate = new Directorate(title);
+        directorate.Id = id;
+        directorate.SetActive(isActive);
+        return directorate;
+    }
+
     public Directorate(string title) => Rename(title);
 
     public void Rename(string title)
@@ -21,6 +29,11 @@ public sealed class Directorate : Entity
             throw new DomainException("Название подразделения слишком длинное.");
 
         Title = title;
+    }
+
+    public void SetActive(bool isActive)
+    {
+        IsActive = isActive;
     }
 
     public void Activate() => IsActive = true;
