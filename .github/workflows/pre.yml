@@ -1,7 +1,8 @@
 on:
   push:
-    branches: [ master ]
+    branches: [ Pre_stand ]
     paths:
+      - '.github/workflows/**'
       - 'Presentation/**'
       - 'Application/**'
       - 'Domain/**'
