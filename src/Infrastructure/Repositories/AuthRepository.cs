@@ -15,7 +15,7 @@ public sealed class AuthRepository : IAuthRepository, IDisposable
 
     public void Dispose()
     {
-        
+        // test
     }
 
     public async Task<AuthUser?> FindByEmailAsync(
