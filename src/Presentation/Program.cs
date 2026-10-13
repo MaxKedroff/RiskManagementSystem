@@ -3,6 +3,7 @@ using Application;
 using Application.Abstractions;
 using Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Presentation.Security;
@@ -103,6 +104,12 @@ if (app.Environment.IsDevelopment())
             "Risk Management API v1");
 
         options.RoutePrefix = "swagger";
+    });
+
+    app.MapGet("/_dev/hash/{password}", (string password) =>
+    {
+        var hasher = new PasswordHasher<object>();
+        return Results.Text(hasher.HashPassword(new object(), password));
     });
 }
 

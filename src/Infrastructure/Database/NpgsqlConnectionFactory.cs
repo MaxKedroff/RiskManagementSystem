@@ -11,7 +11,7 @@ namespace Infrastructure.Database
         public NpgsqlConnectionFactory(IConfiguration configuration)
         {
             var connectionString =
-                configuration.GetConnectionString("Default");
+                configuration.GetConnectionString("DefaultConnection");
 
             if (string.IsNullOrWhiteSpace(connectionString))
             {
