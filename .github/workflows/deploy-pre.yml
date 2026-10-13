@@ -96,4 +96,5 @@ jobs:
           docker compose logs --tail=50 backend-pre
           
           echo "Deployment completed successfully!"
+          end workflow
         EOF
