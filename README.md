@@ -3,7 +3,7 @@
 ASP.NET Core monolith with Onion-style layers and Dapper + PostgreSQL.
 
 ## Requirements
-- .NET 10 SDK
+- .NET 9 SDK
 - PostgreSQL 16+
 - `psql` (to apply the schema)
 
