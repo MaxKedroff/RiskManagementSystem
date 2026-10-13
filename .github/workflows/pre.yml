@@ -3,10 +3,10 @@ on:
     branches: [ Pre_stand ]
     paths:
       - '.github/workflows/**'
-      - 'Presentation/**'
-      - 'Application/**'
-      - 'Domain/**'
-      - 'Infrastructure/**'
+      - 'src/Presentation/**'
+      - 'src/Application/**'
+      - 'src/Domain/**'
+      - 'src/Infrastructure/**'
       - 'docker-compose.yml'
 
 env:
@@ -50,7 +50,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         context: .
-        file: ./Presentation/Dockerfile
+        file: ./src/Presentation/Dockerfile
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
