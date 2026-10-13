@@ -42,7 +42,7 @@ jobs:
       with:
         images: ${{ secrets.DOCKERHUB_USERNAME }}/rms-service-backend-pre
         tags: |
-          type=raw,value=latest,enable={{is_default_branch}}
+          type=raw,value=latest
           type=sha,prefix=sha-
           type=raw,value=${{ github.run_number }}
 
@@ -78,7 +78,7 @@ jobs:
           cd ${{ env.PROJECT_PATH }}
           
           echo "Pulling latest image..."
-          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}
           
           echo "Stopping old containers..."
           docker compose down || true
