@@ -46,7 +46,6 @@ jobs:
           type=raw,value=latest,enable={{is_default_branch}}
           type=sha,prefix=sha-
           type=raw,value=${{ github.run_number }}
-          type=raw,value=main
 
     - name: Build and push backend image
       uses: docker/build-push-action@v5
