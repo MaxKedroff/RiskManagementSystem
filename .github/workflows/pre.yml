@@ -94,7 +94,7 @@ jobs:
           docker compose ps
           
           echo "Checking backend logs..."
-          docker compose logs --tail=50 backend-pre
+          docker compose logs --tail=50 rms_backend_pre
           
           echo "Deployment completed successfully!"
           end workflow
