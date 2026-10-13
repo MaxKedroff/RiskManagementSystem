@@ -16,7 +16,7 @@ namespace Infrastructure.Database
             if (string.IsNullOrWhiteSpace(connectionString))
             {
                 throw new InvalidOperationException(
-                    "Не задана строка подключения ConnectionStrings:Default.");
+                    "Не задана строка подключения ConnectionStrings:Default. ");
             }
 
             var builder = new NpgsqlDataSourceBuilder(connectionString);
