@@ -2,6 +2,7 @@ on:
   push:
     branches: [ master ]
     paths:
+      - '.github/workflows/**'
       - 'Presentation/**'
       - 'Application/**'
       - 'Domain/**'
