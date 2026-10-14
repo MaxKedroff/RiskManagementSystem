@@ -118,6 +118,25 @@ public sealed class Person : Entity
     public void Deactivate() => IsActive = false;
 }
 
+public sealed class ProcessUpdate
+{
+    public int Id { get; init; }
+    public int? DirectorateId { get; init; }
+    public string? Title { get; init; }
+    public int? OwnerId { get; init; }
+    public string? Description { get; init; }
+    public bool? IsActive { get; init; }
+}
+
+public sealed class ProcessDependencies
+{
+    public int RiskProcesses { get; init; }
+    public int Responsibilities { get; init; }
+    public int OwnedProcesses { get; init; }
+
+    public bool HasAny => RiskProcesses > 0 || Responsibilities > 0 || OwnedProcesses > 0;
+}
+
 public sealed class BusinessProcess : Entity
 {
     public int DirectorateId { get; private set; }
@@ -127,6 +146,22 @@ public sealed class BusinessProcess : Entity
     public bool IsActive { get; private set; } = true;
 
     private BusinessProcess() { }
+
+    public static BusinessProcess Rehydrate(
+    int id,
+    int directorateId,
+    string title,
+    int ownerId,
+    string? description,
+    bool isActive)
+    {
+        var process = new BusinessProcess(directorateId, title, ownerId, description)
+        {
+            Id = id
+        };
+        process.IsActive = isActive;
+        return process;
+    }
 
     public BusinessProcess(
         int directorateId,

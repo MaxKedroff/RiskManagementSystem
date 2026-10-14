@@ -1,5 +1,6 @@
 ﻿using Application.Org.Directorates;
 using Application.Org.Persons;
+using Application.Org.Processes;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
@@ -11,6 +12,8 @@ namespace Application
         {
             services.AddScoped<DirectorateService>();
             services.AddScoped<PersonService>();
+            services.AddScoped<ProcessService>();
+
             return services;
         }
     }
