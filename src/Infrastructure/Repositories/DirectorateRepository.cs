@@ -108,32 +108,35 @@ namespace Infrastructure.Repositories
         }
 
         public async Task<DirectorateDependencies> GetDependenciesAsync(
-        int directorateId,
-        CancellationToken cancellationToken = default)
+            int directorateId,
+            CancellationToken cancellationToken = default)
         {
             const string sql = """
-                SELECT
-                    (SELECT COUNT(*)
-                     FROM org.persons p
-                     WHERE p.directorate_id = @Id) AS Persons,
+        SELECT
+            (
+                SELECT COUNT(*)
+                FROM org.persons
+                WHERE directorate_id = @DirectorateId
+            ) AS Persons,
+            (
+                SELECT COUNT(*)
+                FROM org.processes
+                WHERE directorate_id = @DirectorateId
+            ) AS Processes,
+            (
+                SELECT COUNT(*)
+                FROM org.responsibility r
+                JOIN org.persons p ON p.person_id = r.person_id
+                WHERE p.directorate_id = @DirectorateId
+            ) AS Responsibilities;
+        """;
 
-                    (SELECT COUNT(*)
-                     FROM org.processes pr
-                     WHERE pr.directorate_id = @Id) AS Processes,
-
-                    (SELECT COUNT(*)
-                     FROM org.responsibility r
-                     JOIN org.persons p ON p.person_id = r.person_id
-                     WHERE p.directorate_id = @Id) AS Responsibilities;
-                """;
-
-            await using var connection =
-                await _connectionFactory.CreateOpenConnectionAsync(
-                    cancellationToken);
+            using var connection = await _connectionFactory.CreateOpenConnectionAsync();
 
             return await connection.QuerySingleAsync<DirectorateDependencies>(
                 new CommandDefinition(
-                    sql, new { Id = directorateId },
+                    sql,
+                    new { DirectorateId = directorateId },
                     cancellationToken: cancellationToken));
         }
 

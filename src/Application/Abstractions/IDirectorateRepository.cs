@@ -4,12 +4,14 @@ using Domain.Org;
 namespace Application.Abstractions;
 
 public sealed record DirectorateDependencies(
-    int Persons,
-    int Processes,
-    int Responsibilities)
+    long Persons,
+    long Processes,
+    long Responsibilities)
 {
     public bool HasAny =>
-        Persons > 0 || Processes > 0 || Responsibilities > 0;
+        Persons > 0 ||
+        Processes > 0 ||
+        Responsibilities > 0;
 }
 
 public interface IDirectorateRepository
