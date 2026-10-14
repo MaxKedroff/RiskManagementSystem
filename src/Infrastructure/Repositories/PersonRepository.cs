@@ -3,6 +3,7 @@ using Application.Abstractions;
 using Dapper;
 using Domain.Org;
 using Infrastructure.Database;
+using static Domain.Org.Person;
 
 namespace Infrastructure.Repositories;
 
@@ -125,27 +126,44 @@ public sealed class PersonRepository : IPersonRepository
     }
 
     public async Task<bool> UpdateAsync(
-        Person person,
-        CancellationToken cancellationToken = default)
+    PersonUpdate update,
+    CancellationToken cancellationToken = default)
     {
-        const string sql = """
-            UPDATE org.persons
-            SET directorate_id = @DirectorateId,
-                person_position = @Position,
-                is_person_active = @IsActive
-            WHERE person_id = @Id;
-            """;
+        var setClauses = new List<string>();
+        var parameters = new DynamicParameters();
+        parameters.Add("Id", update.Id);
+
+        if (update.DirectorateId.HasValue)
+        {
+            setClauses.Add("directorate_id = @DirectorateId");
+            parameters.Add("DirectorateId", update.DirectorateId.Value);
+        }
+
+        if (update.Position is not null)
+        {
+            setClauses.Add("person_position = @Position");
+            parameters.Add("Position", update.Position);
+        }
+
+        if (update.IsActive.HasValue)
+        {
+            setClauses.Add("is_person_active = @IsActive");
+            parameters.Add("IsActive", update.IsActive.Value);
+        }
+
+        if (setClauses.Count == 0)
+            return false; // нечего обновлять
+
+        var sql = $"""
+        UPDATE org.persons
+        SET {string.Join(", ", setClauses)}
+        WHERE person_id = @Id;
+        """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
 
         var affected = await connection.ExecuteAsync(
-            new CommandDefinition(sql, new
-            {
-                person.Id,
-                person.DirectorateId,
-                person.Position,
-                person.IsActive
-            }, cancellationToken: cancellationToken));
+            new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
 
         return affected > 0;
     }

@@ -1,6 +1,7 @@
 ﻿
 using Application.Abstractions;
 using Domain.Org;
+using static Domain.Org.Person;
 
 namespace Application.Org.Persons;
 
@@ -58,34 +59,51 @@ public sealed class PersonService
         _repository.GetAllAsync(cancellationToken);
 
     public async Task<int> UpdateAsync(
-        int id,
-        int directorateId,
-        string personPosition,
-        bool isPersonActive,
-        CancellationToken cancellationToken = default)
+    int id,
+    int? directorateId,
+    string? personPosition,
+    bool? isPersonActive,
+    CancellationToken cancellationToken = default)
     {
         if (id <= 0)
             throw new PersonValidationException("Некорректный ID сотрудника.");
 
-        Validate(directorateId, personPosition);
+        // Проверяем, что хотя бы одно поле передано
+        if (directorateId is null && personPosition is null && isPersonActive is null)
+            throw new PersonValidationException("Не передано ни одного поля для обновления.");
 
-        var person = await _repository.GetByIdAsync(id, cancellationToken)
+        // Проверяем существование
+        var existing = await _repository.GetByIdAsync(id, cancellationToken)
             ?? throw new PersonNotFoundException(id);
 
-        if (!await _repository.DirectorateIsActiveAsync(
-                directorateId, cancellationToken))
+        // Валидация только переданных полей
+        if (directorateId.HasValue)
         {
-            throw new PersonValidationException(
-                $"Активная дирекция с ID {directorateId} не найдена.");
+            if (directorateId.Value <= 0)
+                throw new PersonValidationException("directorateId должен быть положительным числом.");
+
+            if (!await _repository.DirectorateIsActiveAsync(directorateId.Value, cancellationToken))
+                throw new PersonValidationException($"Активная дирекция с ID {directorateId} не найдена.");
         }
 
-        person.ChangeDirectorate(directorateId);
-        person.ChangePosition(personPosition.Trim());
-        person.SetActive(isPersonActive);
+        if (personPosition is not null)
+        {
+            if (string.IsNullOrWhiteSpace(personPosition))
+                throw new PersonValidationException("Должность не может быть пустой.");
 
-        var updated = await _repository.UpdateAsync(
-            person, cancellationToken);
+            if (personPosition.Trim().Length > 250)
+                throw new PersonValidationException("Должность не должна превышать 250 символов.");
+        }
 
+        var update = new PersonUpdate
+        {
+            Id = id,
+            DirectorateId = directorateId,
+            Position = personPosition?.Trim(),
+            IsActive = isPersonActive
+        };
+
+        var updated = await _repository.UpdateAsync(update, cancellationToken);
         if (!updated)
             throw new PersonNotFoundException(id);
 

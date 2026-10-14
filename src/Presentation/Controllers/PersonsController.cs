@@ -75,13 +75,10 @@ public sealed class PersonsController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [ProducesResponseType(typeof(UpdatePersonResponse), StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Update(
-        int id,
-        [FromBody] UpdatePersonRequest request,
-        CancellationToken cancellationToken)
+    int id,
+    [FromBody] UpdatePersonRequest request,
+    CancellationToken cancellationToken)
     {
         try
         {
@@ -157,9 +154,9 @@ public sealed record CreatePersonRequest(
     string PersonPosition);
 
 public sealed record UpdatePersonRequest(
-    int DirectorateId,
-    string PersonPosition,
-    bool IsPersonActive);
+    int? DirectorateId,
+    string? PersonPosition,
+    bool? IsPersonActive);
 
 public sealed record CreatePersonResponse(int PersonId);
 public sealed record UpdatePersonResponse(int PersonId);

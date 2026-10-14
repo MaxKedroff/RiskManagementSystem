@@ -1,5 +1,6 @@
 ﻿
 using Domain.Org;
+using static Domain.Org.Person;
 
 namespace Application.Abstractions;
 
@@ -35,9 +36,8 @@ public interface IPersonRepository
         int directorateId,
         CancellationToken cancellationToken = default);
 
-    Task<bool> UpdateAsync(
-        Person person,
-        CancellationToken cancellationToken = default);
+    Task<bool> UpdateAsync(PersonUpdate update, CancellationToken cancellationToken = default);
+
 
     Task<PersonDependencies> GetDependenciesAsync(
         int personId,

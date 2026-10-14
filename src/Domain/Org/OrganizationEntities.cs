@@ -85,6 +85,14 @@ public sealed class Person : Entity
         return person;
     }
 
+    public sealed class PersonUpdate
+    {
+        public int Id { get; init; }
+        public int? DirectorateId { get; init; }
+        public string? Position { get; init; }
+        public bool? IsActive { get; init; }
+    }
+
     public void ChangeDirectorate(int? directorateId)
     {
         if (directorateId is <= 0)
