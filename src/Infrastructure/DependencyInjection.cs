@@ -25,6 +25,7 @@ namespace Infrastructure
             });
 
             services.AddScoped<IDirectorateRepository, DirectorateRepository>();
+            services.AddScoped<IPersonRepository, PersonRepository>();
             services.AddScoped<IAuthRepository, AuthRepository>();
             services.AddScoped<IPasswordHashService, PasswordHashService>();
 

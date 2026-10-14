@@ -1,4 +1,5 @@
 ﻿using Application.Org.Directorates;
+using Application.Org.Persons;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
@@ -9,6 +10,7 @@ namespace Application
             this IServiceCollection services)
         {
             services.AddScoped<DirectorateService>();
+            services.AddScoped<PersonService>();
             return services;
         }
     }

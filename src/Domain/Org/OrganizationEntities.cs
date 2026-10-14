@@ -69,6 +69,22 @@ public sealed class Person : Entity
         Position = position;
     }
 
+    public static Person Rehydrate(
+        int id,
+        int userId,
+        int directorateId,
+        string position,
+        bool isActive)
+    {
+        var person = new Person(userId, directorateId, position)
+        {
+            Id = id,
+            IsActive = isActive
+        };
+
+        return person;
+    }
+
     public void ChangeDirectorate(int? directorateId)
     {
         if (directorateId is <= 0)
@@ -86,6 +102,11 @@ public sealed class Person : Entity
     }
 
     public void Activate() => IsActive = true;
+
+    public void SetActive(bool active)
+    {
+        IsActive = active;
+    }
     public void Deactivate() => IsActive = false;
 }
 
