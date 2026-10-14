@@ -24,7 +24,7 @@ namespace Infrastructure.Repositories
             const string sql = """
                 INSERT INTO org.directorates
                     (directorate_title, is_directorate_active)
-                VALUE
+                VALUES
                     (@Title, TRUE)
                 RETURNING directorate_id;
                 """;
