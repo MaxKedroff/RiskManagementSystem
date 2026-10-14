@@ -223,6 +223,21 @@ public sealed class Asset : Entity
         ChangeHourCost(hourCost);
     }
 
+    public static Asset Rehydrate(
+    int id,
+    string title,
+    string? inventoryNumber,
+    decimal hourCost,
+    bool isActive)
+    {
+        var asset = new Asset(title, inventoryNumber, hourCost)
+        {
+            Id = id
+        };
+        if (!isActive) asset.Deactivate();
+        return asset;
+    }
+
     public void Rename(string title)
     {
         if (string.IsNullOrWhiteSpace(title))
@@ -255,6 +270,22 @@ public sealed class Asset : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+}
+
+public sealed class AssetUpdate
+{
+    public int Id { get; init; }
+    public string? Title { get; init; }
+    public string? InventoryNumber { get; init; }
+    public decimal? HourCost { get; init; }
+    public bool? IsActive { get; init; }
+}
+
+public sealed class AssetDependencies
+{
+    public int Risks { get; init; }
+
+    public bool HasAny => Risks > 0;
 }
 
 public sealed class Responsibility : Entity
