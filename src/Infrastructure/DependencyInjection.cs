@@ -29,6 +29,7 @@ namespace Infrastructure
             services.AddScoped<IProcessRepository, ProcessRepository>();
             services.AddScoped<IAssetRepository, AssetRepository>();
             services.AddScoped<IUserRepository, UserRepository>();
+            services.AddScoped<IRoleRepository, RoleRepository>();
 
 
             services.AddScoped<IAuthRepository, AuthRepository>();

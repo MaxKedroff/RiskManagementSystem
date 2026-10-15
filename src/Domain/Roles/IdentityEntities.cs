@@ -171,6 +171,12 @@ public sealed class Role : Entity
 
         return value;
     }
+
+    public sealed class RoleUpdate
+    {
+        public int Id { get; init; }
+        public IReadOnlyList<int> RightIds { get; init; } = Array.Empty<int>();
+    }
 }
 
 public sealed class Right : Entity
@@ -190,6 +196,16 @@ public sealed class Right : Entity
 
         Code = code.Trim();
         Description = description.Trim();
+    }
+
+    public static Right Rehydrate(int id, string code, string description)
+    {
+        var right = new Right(code, description)
+        {
+            Id = id
+        };
+
+        return right;
     }
 }
 
@@ -228,5 +244,15 @@ public sealed class RoleRight : Entity
 
         RoleId = roleId;
         RightId = rightId;
+    }
+
+    public static RoleRight Rehydrate(int id, int roleId, int rightId)
+    {
+        var roleRight = new RoleRight(roleId, rightId)
+        {
+            Id = id
+        };
+
+        return roleRight;
     }
 }
