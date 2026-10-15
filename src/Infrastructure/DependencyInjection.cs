@@ -36,6 +36,7 @@ namespace Infrastructure
             services.AddScoped<IPasswordHashService, PasswordHashService>();
             services.AddScoped<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
             services.AddScoped<IResponsibilityRepository, ResponsibilityRepository>();
+            services.AddScoped<IHazardGroupRepository, HazardGroupRepository>();
 
             return services;
 

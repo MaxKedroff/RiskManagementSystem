@@ -5,6 +5,7 @@ using Application.Org.Processes;
 using Application.Org.Responsibilities;
 using Application.Org.Roles;
 using Application.Org.Users;
+using Application.Risk.HazardGroups;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
@@ -21,6 +22,7 @@ namespace Application
             services.AddScoped<ResponsibilityService>();
             services.AddScoped<UserService>();
             services.AddScoped<RoleService>();
+            services.AddScoped<HazardGroupService>();
 
 
 

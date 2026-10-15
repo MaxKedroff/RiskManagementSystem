@@ -25,6 +25,13 @@ public sealed class HazardGroup : Entity
 
     private HazardGroup() { }
 
+    public static HazardGroup Rehydrate(int id, string name, bool isActive)
+    {
+        var hazardGroup = new HazardGroup(name) { Id = id };
+        if (!isActive) hazardGroup.Deactivate();
+        return hazardGroup;
+    }
+
     public HazardGroup(string name) => Rename(name);
 
     public void Rename(string name)
@@ -41,6 +48,7 @@ public sealed class HazardGroup : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+    public void SetActive(bool isActive) => IsActive = isActive;
 }
 
 public sealed class Hazard : Entity
@@ -290,4 +298,11 @@ public sealed class RiskComment : Entity
 
         return value;
     }
+}
+
+public sealed class HazardGroupDependencies
+{
+    public long Hazards { get; init; }
+
+    public bool HasAny => Hazards > 0;
 }
