@@ -32,6 +32,7 @@ namespace Infrastructure
 
             services.AddScoped<IAuthRepository, AuthRepository>();
             services.AddScoped<IPasswordHashService, PasswordHashService>();
+            services.AddScoped<IResponsibilityRepository, ResponsibilityRepository>();
 
             return services;
 

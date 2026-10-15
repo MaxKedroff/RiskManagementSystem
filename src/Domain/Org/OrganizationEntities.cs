@@ -321,4 +321,37 @@ public sealed class Responsibility : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+
+    public static Responsibility Rehydrate(
+    int id,
+    int personId,
+    int? directedPersonId,
+    string type,
+    bool isActive)
+    {
+        var responsibility = new Responsibility(personId, directedPersonId, type)
+        {
+            Id = id
+        };
+
+        if (!isActive) responsibility.Deactivate();
+
+        return responsibility;
+    }
+
+    public sealed class ResponsibilityUpdate
+    {
+        public int Id { get; init; }
+        public int? PersonId { get; init; }
+        public int? DirectedPersonId { get; init; }
+        public string? Type { get; init; }
+        public bool? IsActive { get; init; }
+    }
+
+    public sealed class ResponsibilityDependencies
+    {
+        public int Subordinates { get; init; }
+
+        public bool HasAny => Subordinates > 0;
+    }
 }
