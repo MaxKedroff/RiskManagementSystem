@@ -93,9 +93,6 @@ jobs:
           echo "Checking container status..."
           docker compose ps
           
-          echo "Checking backend logs..."
-          docker compose logs --tail=50 rms_backend_pre
-          
           echo "Deployment completed successfully!"
           end workflow
         EOF
