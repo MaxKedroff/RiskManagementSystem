@@ -5,6 +5,7 @@ using Application.Org.Processes;
 using Application.Org.Responsibilities;
 using Application.Org.Roles;
 using Application.Org.Users;
+using Application.Assessment.ImpactLevels;
 using Application.Risk.Categories;
 using Application.Risk.HazardGroups;
 using Application.Risk.Hazards;
@@ -27,6 +28,7 @@ namespace Application
             services.AddScoped<HazardGroupService>();
             services.AddScoped<HazardService>();
             services.AddScoped<RiskCategoryService>();
+            services.AddScoped<ImpactLevelService>();
 
 
 

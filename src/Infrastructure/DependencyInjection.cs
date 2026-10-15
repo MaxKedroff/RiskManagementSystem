@@ -39,6 +39,7 @@ namespace Infrastructure
             services.AddScoped<IHazardGroupRepository, HazardGroupRepository>();
             services.AddScoped<IHazardRepository, HazardRepository>();
             services.AddScoped<IRiskCategoryRepository, RiskCategoryRepository>();
+            services.AddScoped<IImpactLevelRepository, ImpactLevelRepository>();
 
             return services;
 

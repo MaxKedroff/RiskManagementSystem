@@ -80,6 +80,16 @@ public sealed class ImpactLevel : Entity
 
     private ImpactLevel() { }
 
+    public static ImpactLevel Rehydrate(
+        int id, int methodId, string name, int weight, decimal loss, decimal maximumLoss)
+    {
+        var level = new ImpactLevel(methodId, name, weight, loss, maximumLoss)
+        {
+            Id = id
+        };
+        return level;
+    }
+
     public ImpactLevel(
         int methodId,
         string name,
