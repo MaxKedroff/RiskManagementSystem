@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GigaCodeAgentSettings">
+    <option name="autoApproveEdits" value="true" />
+    <option name="autoApprovedCommands">
+      <list>
+        <Execute>
+          <option name="pattern" value="git log *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="dotnet new *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="dotnet add *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="dotnet build *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="del tests/OnionRiskPlatform.Tests/UnitTest1.cs" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="dotnet test *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="git status" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="git add *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="git commit *" />
+        </Execute>
+      </list>
+    </option>
+  </component>
+</project>

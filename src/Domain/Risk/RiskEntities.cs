@@ -107,6 +107,13 @@ public sealed class RiskCategory : Entity
 
     private RiskCategory() { }
 
+    public static RiskCategory Rehydrate(int id, string name, bool isActive)
+    {
+        var category = new RiskCategory(name) { Id = id };
+        if (!isActive) category.Deactivate();
+        return category;
+    }
+
     public RiskCategory(string name) => Rename(name);
 
     public void Rename(string name)
@@ -123,6 +130,7 @@ public sealed class RiskCategory : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+    public void SetActive(bool isActive) => IsActive = isActive;
 }
 
 public sealed class Risk : Entity
@@ -316,6 +324,13 @@ public sealed class HazardGroupDependencies
 }
 
 public sealed class HazardDependencies
+{
+    public long Risks { get; init; }
+
+    public bool HasAny => Risks > 0;
+}
+
+public sealed class RiskCategoryDependencies
 {
     public long Risks { get; init; }
 
