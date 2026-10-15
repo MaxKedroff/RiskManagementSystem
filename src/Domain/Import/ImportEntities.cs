@@ -24,6 +24,23 @@ public sealed class FileUpload : Entity
 
     private FileUpload() { }
 
+    public static FileUpload Rehydrate(
+        int id, string title, ImportStatus status, int personId,
+        int totalRows, int validRows, int invalidRows, string report, string? error)
+    {
+        var upload = new FileUpload(title, personId)
+        {
+            Id = id,
+            Status = status,
+            TotalRows = totalRows,
+            ValidRows = validRows,
+            InvalidRows = invalidRows,
+            Report = report,
+            Error = error
+        };
+        return upload;
+    }
+
     public FileUpload(string title, int personId)
     {
         if (personId <= 0)

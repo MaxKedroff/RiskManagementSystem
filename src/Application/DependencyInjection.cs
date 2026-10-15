@@ -7,6 +7,7 @@ using Application.Org.Roles;
 using Application.Org.Users;
 using Application.Assessment.AcceptanceSettings;
 using Application.Assessment.ImpactLevels;
+using Application.Import.FileUploads;
 using Application.Risk.Categories;
 using Application.Risk.HazardGroups;
 using Application.Risk.Hazards;
@@ -33,6 +34,7 @@ namespace Application
             services.AddScoped<ImpactLevelService>();
             services.AddScoped<RiskAcceptanceSettingsService>();
             services.AddScoped<TreatmentApprovalSettingsService>();
+            services.AddScoped<FileUploadService>();
 
 
 
