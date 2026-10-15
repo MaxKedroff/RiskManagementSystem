@@ -226,6 +226,16 @@ public sealed class RiskAcceptanceSettings : Entity
 
     private RiskAcceptanceSettings() { }
 
+    public static RiskAcceptanceSettings Rehydrate(
+        int id, int methodId, int owner, int director, int ceo)
+    {
+        var settings = new RiskAcceptanceSettings(methodId, owner, director, ceo)
+        {
+            Id = id
+        };
+        return settings;
+    }
+
     public RiskAcceptanceSettings(
         int methodId,
         int ownerMaxScore,

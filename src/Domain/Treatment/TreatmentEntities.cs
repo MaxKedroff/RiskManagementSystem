@@ -232,6 +232,16 @@ public sealed class TreatmentApprovalSettings : Entity
 
     private TreatmentApprovalSettings() { }
 
+    public static TreatmentApprovalSettings Rehydrate(
+        int id, int owner, int director, int ceo)
+    {
+        var settings = new TreatmentApprovalSettings(owner, director, ceo)
+        {
+            Id = id
+        };
+        return settings;
+    }
+
     public TreatmentApprovalSettings(int owner, int director, int ceo) =>
         ChangeThresholds(owner, director, ceo);
 

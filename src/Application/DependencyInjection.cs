@@ -5,10 +5,12 @@ using Application.Org.Processes;
 using Application.Org.Responsibilities;
 using Application.Org.Roles;
 using Application.Org.Users;
+using Application.Assessment.AcceptanceSettings;
 using Application.Assessment.ImpactLevels;
 using Application.Risk.Categories;
 using Application.Risk.HazardGroups;
 using Application.Risk.Hazards;
+using Application.Treatment.ApprovalSettings;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
@@ -29,6 +31,8 @@ namespace Application
             services.AddScoped<HazardService>();
             services.AddScoped<RiskCategoryService>();
             services.AddScoped<ImpactLevelService>();
+            services.AddScoped<RiskAcceptanceSettingsService>();
+            services.AddScoped<TreatmentApprovalSettingsService>();
 
 
 
