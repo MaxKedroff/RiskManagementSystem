@@ -9,6 +9,10 @@ public sealed class User : Entity
     public string PasswordHash { get; private set; } = string.Empty;
     public bool IsActive { get; private set; } = true;
 
+    public int? PersonId { get; private set; }
+    public int? DirectorateId { get; private set; }
+    public string? ResponsibilityType { get; private set; }
+
     private User() { }
 
     public User(string fullName, string email, string passwordHash)
@@ -16,6 +20,22 @@ public sealed class User : Entity
         Rename(fullName);
         ChangeEmail(email);
         SetPasswordHash(passwordHash);
+    }
+
+    public User(
+        string fullName,
+        string email,
+        string passwordHash,
+        int? personId,
+        int? directorateId,
+        string? responsibilityType)
+    {
+        Rename(fullName);
+        ChangeEmail(email);
+        SetPasswordHash(passwordHash);
+        LinkPerson(personId);
+        LinkDirectorate(directorateId);
+        ChangeResponsibilityType(responsibilityType);
     }
 
     public void Rename(string fullName)
@@ -38,8 +58,54 @@ public sealed class User : Entity
         PasswordHash = Required(passwordHash, int.MaxValue, nameof(passwordHash));
     }
 
+    public void LinkPerson(int? personId)
+    {
+        if (personId is <= 0)
+            throw new DomainException("ID сотрудника должен быть положительным.");
+
+        PersonId = personId;
+    }
+
+    public void LinkDirectorate(int? directorateId)
+    {
+        if (directorateId is <= 0)
+            throw new DomainException("ID подразделения должен быть положительным.");
+
+        DirectorateId = directorateId;
+    }
+
+    public void ChangeResponsibilityType(string? type)
+    {
+        if (string.IsNullOrWhiteSpace(type))
+        {
+            ResponsibilityType = null;
+            return;
+        }
+
+        ResponsibilityType = type.Trim().ToUpperInvariant();
+    }
+
     public void Deactivate() => IsActive = false;
     public void Activate() => IsActive = true;
+
+    public static User Rehydrate(
+        int id,
+        string fullName,
+        string email,
+        string passwordHash,
+        bool isActive,
+        int? personId,
+        int? directorateId,
+        string? responsibilityType)
+    {
+        var user = new User(fullName, email, passwordHash, personId, directorateId, responsibilityType)
+        {
+            Id = id,
+            IsActive = isActive
+        };
+
+        return user;
+    }
 
     private static string Required(string value, int maxLength, string name)
     {
@@ -53,8 +119,15 @@ public sealed class User : Entity
 
         return value;
     }
-}
 
+    public sealed class UserUpdate
+    {
+        public int Id { get; init; }
+        public string? FullName { get; init; }
+        public bool? IsActive { get; init; }
+        public IReadOnlyList<int>? RoleIds { get; init; }
+    }
+}
 public sealed class Role : Entity
 {
     public string Code { get; private set; } = string.Empty;
@@ -74,6 +147,18 @@ public sealed class Role : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+
+    public static Role Rehydrate(int id, string code, string name, bool isActive)
+    {
+        var role = new Role(code, name)
+        {
+            Id = id
+        };
+
+        if (!isActive) role.Deactivate();
+
+        return role;
+    }
 
     private static string Required(string value, int max, string name)
     {

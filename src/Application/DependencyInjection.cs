@@ -3,6 +3,7 @@ using Application.Org.Directorates;
 using Application.Org.Persons;
 using Application.Org.Processes;
 using Application.Org.Responsibilities;
+using Application.Org.Users;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application
@@ -17,6 +18,7 @@ namespace Application
             services.AddScoped<ProcessService>();
             services.AddScoped<AssetService>();
             services.AddScoped<ResponsibilityService>();
+            services.AddScoped<UserService>();
 
 
 

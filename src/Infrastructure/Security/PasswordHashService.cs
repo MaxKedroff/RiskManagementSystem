@@ -16,5 +16,10 @@ namespace Infrastructure.Security
 
             return result != PasswordVerificationResult.Failed;
         }
+
+        public string Hash(string password)
+        {
+            return _hasher.HashPassword(new object(), password);
+        }
     }
 }

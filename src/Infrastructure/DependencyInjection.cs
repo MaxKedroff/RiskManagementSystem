@@ -28,10 +28,12 @@ namespace Infrastructure
             services.AddScoped<IPersonRepository, PersonRepository>();
             services.AddScoped<IProcessRepository, ProcessRepository>();
             services.AddScoped<IAssetRepository, AssetRepository>();
+            services.AddScoped<IUserRepository, UserRepository>();
 
 
             services.AddScoped<IAuthRepository, AuthRepository>();
             services.AddScoped<IPasswordHashService, PasswordHashService>();
+            services.AddScoped<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
             services.AddScoped<IResponsibilityRepository, ResponsibilityRepository>();
 
             return services;
