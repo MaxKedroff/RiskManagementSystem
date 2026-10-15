@@ -59,6 +59,13 @@ public sealed class Hazard : Entity
 
     private Hazard() { }
 
+    public static Hazard Rehydrate(int id, int hazardGroupId, string name, bool isActive)
+    {
+        var hazard = new Hazard(hazardGroupId, name) { Id = id };
+        if (!isActive) hazard.Deactivate();
+        return hazard;
+    }
+
     public Hazard(int hazardGroupId, string name)
     {
         if (hazardGroupId <= 0)
@@ -90,6 +97,7 @@ public sealed class Hazard : Entity
 
     public void Activate() => IsActive = true;
     public void Deactivate() => IsActive = false;
+    public void SetActive(bool isActive) => IsActive = isActive;
 }
 
 public sealed class RiskCategory : Entity
@@ -305,4 +313,11 @@ public sealed class HazardGroupDependencies
     public long Hazards { get; init; }
 
     public bool HasAny => Hazards > 0;
+}
+
+public sealed class HazardDependencies
+{
+    public long Risks { get; init; }
+
+    public bool HasAny => Risks > 0;
 }

@@ -37,6 +37,7 @@ namespace Infrastructure
             services.AddScoped<ITemporaryPasswordGenerator, TemporaryPasswordGenerator>();
             services.AddScoped<IResponsibilityRepository, ResponsibilityRepository>();
             services.AddScoped<IHazardGroupRepository, HazardGroupRepository>();
+            services.AddScoped<IHazardRepository, HazardRepository>();
 
             return services;
 
