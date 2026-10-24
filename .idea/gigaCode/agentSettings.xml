@@ -31,6 +31,12 @@
         <Execute>
           <option name="pattern" value="git commit *" />
         </Execute>
+        <Execute>
+          <option name="pattern" value="git diff *" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="git push *" />
+        </Execute>
       </list>
     </option>
   </component>

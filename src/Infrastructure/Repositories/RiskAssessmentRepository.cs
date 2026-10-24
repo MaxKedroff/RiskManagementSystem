@@ -181,6 +181,93 @@ public sealed class RiskAssessmentRepository : IRiskAssessmentRepository
         return (row.LikelihoodWeight, row.ImpactWeight);
     }
 
+    public async Task<bool> HasAssessmentWithNullResponseModeAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM assessment.assessments
+                WHERE risk_id = @RiskId
+                  AND is_active = TRUE
+                  AND response_mode IS NULL
+            );
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> UpdateResponseModeAsync(
+        int assessmentId,
+        string responseMode,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE assessment.assessments
+            SET response_mode = @ResponseMode
+            WHERE assessment_id = @AssessmentId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { AssessmentId = assessmentId, ResponseMode = responseMode },
+                cancellationToken: cancellationToken));
+
+        return affected == 1;
+    }
+
+    public async Task<bool> DeactivateAssessmentAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE assessment.assessments
+            SET is_active = FALSE
+            WHERE risk_id = @RiskId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+
+        return affected > 0;
+    }
+
+    public async Task<int?> GetActiveAssessmentIdAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT assessment_id
+            FROM assessment.assessments
+            WHERE risk_id = @RiskId
+              AND is_active = TRUE
+            LIMIT 1;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+    }
+
     private sealed class ImpactRangeRow
     {
         public int ImpactLevelId { get; init; }

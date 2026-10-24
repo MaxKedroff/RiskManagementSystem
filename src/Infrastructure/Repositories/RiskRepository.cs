@@ -127,6 +127,72 @@ public sealed class RiskRepository : IRiskRepository
         return affected == 1;
     }
 
+    public async Task<bool> UpdateRiskStatusAndReasonAsync(
+        int riskId,
+        string status,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risks
+            SET risk_status = @Status,
+                risk_close_reason = @Reason
+            WHERE risk_id = @RiskId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId, Status = status, Reason = reason },
+                cancellationToken: cancellationToken));
+
+        return affected == 1;
+    }
+
+    public async Task<bool> ClearAcceptanceLevelAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risks
+            SET risk_acceptance_level = NULL
+            WHERE risk_id = @RiskId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+
+        return affected == 1;
+    }
+
+    public async Task<bool> SetAwaitingReassessmentStatusAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risks
+            SET risk_status = 'AwaitingReassessment'
+            WHERE risk_id = @RiskId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+
+        return affected == 1;
+    }
+
     public async Task<RiskListItem[]> GetAllAsync(
         CancellationToken cancellationToken = default)
     {

@@ -8,7 +8,8 @@ public enum RiskStatus
     Open = 2,
     InTreatment = 3,
     Accepted = 4,
-    Closed = 5
+    Closed = 5,
+    AwaitingReassessment = 6
 }
 
 public enum RiskAcceptanceLevel

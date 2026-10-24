@@ -43,6 +43,8 @@ namespace Infrastructure
             services.AddScoped<IRiskProcessRepository, RiskProcessRepository>();
             services.AddScoped<IRiskAssessmentRepository, RiskAssessmentRepository>();
             services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
+            services.AddScoped<ICommentRepository, CommentRepository>();
+            services.AddScoped<ITreatmentRepository, TreatmentRepository>();
             services.AddScoped<IImpactLevelRepository, ImpactLevelRepository>();
             services.AddScoped<IRiskAcceptanceSettingsRepository, RiskAcceptanceSettingsRepository>();
             services.AddScoped<ITreatmentApprovalSettingsRepository, TreatmentApprovalSettingsRepository>();

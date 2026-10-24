@@ -207,6 +207,14 @@ public sealed class RiskAssessment : Entity
 
     public void Deactivate() => IsActive = false;
 
+    public void SetResponseMode(string mode)
+    {
+        if (string.IsNullOrWhiteSpace(mode))
+            throw new DomainException("Режим ответа обязателен.");
+
+        ResponseMode = mode.Trim();
+    }
+
     private static decimal RoundMoney(decimal value) =>
         decimal.Round(value, 2, MidpointRounding.AwayFromZero);
 

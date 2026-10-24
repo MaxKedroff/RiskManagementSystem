@@ -10,6 +10,9 @@ namespace Application.Abstractions
         Task<Domain.Risk.Risk?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
         Task<bool> UpdateAsync(Domain.Risk.Risk entity, CancellationToken cancellationToken = default);
         Task<bool> UpdateStatusAsync(int riskId, string status, CancellationToken cancellationToken = default);
+        Task<bool> UpdateRiskStatusAndReasonAsync(int riskId, string status, string? reason, CancellationToken cancellationToken = default);
+        Task<bool> ClearAcceptanceLevelAsync(int riskId, CancellationToken cancellationToken = default);
+        Task<bool> SetAwaitingReassessmentStatusAsync(int riskId, CancellationToken cancellationToken = default);
         Task<RiskListItem[]> GetAllAsync(CancellationToken cancellationToken = default);
         Task<bool> IsActiveDraftAsync(int riskId, CancellationToken cancellationToken = default);
     }

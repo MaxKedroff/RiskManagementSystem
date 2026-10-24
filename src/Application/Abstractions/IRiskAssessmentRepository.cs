@@ -13,6 +13,10 @@ namespace Application.Abstractions
         Task<AcceptanceThresholds?> GetAcceptanceThresholdsAsync(int methodId, CancellationToken cancellationToken = default);
         Task<decimal?> GetAssetHourCostAsync(int assetId, CancellationToken cancellationToken = default);
         Task<(int likelihoodWeight, int impactWeight)> GetAssessmentWeightsAsync(int likelihoodLevelId, int impactLevelId, CancellationToken cancellationToken = default);
+        Task<bool> HasAssessmentWithNullResponseModeAsync(int riskId, CancellationToken cancellationToken = default);
+        Task<bool> UpdateResponseModeAsync(int assessmentId, string responseMode, CancellationToken cancellationToken = default);
+        Task<bool> DeactivateAssessmentAsync(int riskId, CancellationToken cancellationToken = default);
+        Task<int?> GetActiveAssessmentIdAsync(int riskId, CancellationToken cancellationToken = default);
     }
 
     public sealed record ImpactRange(
