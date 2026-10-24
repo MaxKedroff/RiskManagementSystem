@@ -7,7 +7,11 @@ public enum TreatmentStatus
     Planned = 1,
     InProgress = 2,
     Completed = 3,
-    Cancelled = 4
+    Cancelled = 4,
+    PendingApproval = 5,
+    Approved = 6,
+    AwaitingExecution = 7,
+    Hold = 8
 }
 
 public enum ApprovalStatus
@@ -40,6 +44,31 @@ public sealed class Treatment : Entity
     public DateTimeOffset? UpdatedAt { get; private set; }
 
     private Treatment() { }
+
+    public static Treatment Rehydrate(
+        int id,
+        int riskProcessId,
+        string title,
+        string? description,
+        TreatmentStatus status,
+        DateTimeOffset dueAt,
+        decimal plannedCost,
+        decimal actualCost,
+        int createdById,
+        int? assignedToId,
+        DateTimeOffset createdAt,
+        DateTimeOffset? updatedAt)
+    {
+        var treatment = new Treatment(riskProcessId, title, description, dueAt, plannedCost, createdById, assignedToId)
+        {
+            Id = id,
+            Status = status,
+            ActualCost = actualCost,
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt
+        };
+        return treatment;
+    }
 
     public Treatment(
         int riskProcessId,
@@ -139,6 +168,103 @@ public sealed class Treatment : Entity
         Touch();
     }
 
+    public void SubmitForApproval()
+    {
+        if (Status != TreatmentStatus.Planned)
+            throw new DomainException("Отправить на согласование можно только черновик.");
+
+        if (PlannedCost <= 0)
+            throw new DomainException("Необходимо указать плановую стоимость.");
+
+        Status = TreatmentStatus.PendingApproval;
+        Touch();
+    }
+
+    public void Approve()
+    {
+        if (Status != TreatmentStatus.PendingApproval)
+            throw new DomainException("Согласовать можно только ожидающий согласование запрос.");
+
+        Status = TreatmentStatus.Approved;
+        Touch();
+    }
+
+    public void Reject()
+    {
+        if (Status != TreatmentStatus.PendingApproval)
+            throw new DomainException("Отклонить можно только ожидающий согласование запрос.");
+
+        Status = TreatmentStatus.Planned;
+        Touch();
+    }
+
+    public void Revoke()
+    {
+        if (Status is not (TreatmentStatus.PendingApproval or TreatmentStatus.Approved))
+            throw new DomainException("Можно отозвать только ожидающий или согласованный запрос.");
+
+        Status = Status == TreatmentStatus.PendingApproval
+            ? TreatmentStatus.Planned
+            : TreatmentStatus.Cancelled;
+
+        Touch();
+    }
+
+    public void StartExecution()
+    {
+        if (Status is not (TreatmentStatus.AwaitingExecution or TreatmentStatus.Hold))
+            throw new DomainException("Начать выполнение можно из статуса 'Ожидает выполнения' или 'Холд'.");
+
+        if (AssignedToId is null)
+            throw new DomainException("Необходимо назначить исполнителя.");
+
+        Status = TreatmentStatus.InProgress;
+        Touch();
+    }
+
+    public void Hold()
+    {
+        if (Status != TreatmentStatus.InProgress)
+            throw new DomainException("Приостановить можно только выполняемое мероприятие.");
+
+        Status = TreatmentStatus.Hold;
+        Touch();
+    }
+
+    public void Resume()
+    {
+        if (Status != TreatmentStatus.Hold)
+            throw new DomainException("Возобновить можно только приостановленное мероприятие.");
+
+        if (AssignedToId is null)
+            throw new DomainException("Необходимо назначить исполнителя.");
+
+        Status = TreatmentStatus.InProgress;
+        Touch();
+    }
+
+    public void Complete(decimal actualCost)
+    {
+        if (Status != TreatmentStatus.InProgress)
+            throw new DomainException("Завершить можно только выполняемое мероприятие.");
+
+        if (actualCost < 0)
+            throw new DomainException("Фактическая стоимость не может быть отрицательной.");
+
+        ActualCost = Money(actualCost);
+        Status = TreatmentStatus.Completed;
+        Touch();
+    }
+
+    public void CancelExecution()
+    {
+        if (Status is TreatmentStatus.Completed or TreatmentStatus.Cancelled)
+            throw new DomainException("Завершённое или отменённое мероприятие нельзя отменить.");
+
+        Status = TreatmentStatus.Cancelled;
+        Touch();
+    }
+
     private void EnsureNotFinal()
     {
         if (Status is TreatmentStatus.Completed or TreatmentStatus.Cancelled)
@@ -164,6 +290,30 @@ public sealed class ApprovalRequest : Entity
     public int? DecidedById { get; private set; }
 
     private ApprovalRequest() { }
+
+    public static ApprovalRequest Rehydrate(
+        int id,
+        int treatmentId,
+        ApprovalLevel requiredLevel,
+        ApprovalStatus status,
+        int createdById,
+        DateTimeOffset createdAt,
+        string? comment,
+        DateTimeOffset? decisionAt,
+        string? reason,
+        int? decidedById)
+    {
+        var request = new ApprovalRequest(treatmentId, requiredLevel, createdById)
+        {
+            Id = id,
+            Status = status,
+            Comment = comment,
+            DecisionAt = decisionAt,
+            Reason = reason,
+            DecidedById = decidedById
+        };
+        return request;
+    }
 
     public ApprovalRequest(int treatmentId, ApprovalLevel requiredLevel, int createdById)
     {
@@ -202,6 +352,20 @@ public sealed class ApprovalRequest : Entity
         EnsurePending();
         Status = ApprovalStatus.Cancelled;
         DecisionAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Revoke(int revokerId, string revokeReason)
+    {
+        if (Status is not (ApprovalStatus.Pending or ApprovalStatus.Approved))
+            throw new DomainException("Можно отозвать только ожидающий или согласованный запрос.");
+
+        if (string.IsNullOrWhiteSpace(revokeReason))
+            throw new DomainException("При отзыве необходимо указать причину.");
+
+        Status = ApprovalStatus.Cancelled;
+        DecidedById = revokerId;
+        DecisionAt = DateTimeOffset.UtcNow;
+        Reason = revokeReason.Trim();
     }
 
     private void Decide(int approverId, ApprovalStatus status, string? reason)

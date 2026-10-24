@@ -45,6 +45,7 @@ namespace Infrastructure
             services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
             services.AddScoped<ICommentRepository, CommentRepository>();
             services.AddScoped<ITreatmentRepository, TreatmentRepository>();
+            services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();
             services.AddScoped<IImpactLevelRepository, ImpactLevelRepository>();
             services.AddScoped<IRiskAcceptanceSettingsRepository, RiskAcceptanceSettingsRepository>();
             services.AddScoped<ITreatmentApprovalSettingsRepository, TreatmentApprovalSettingsRepository>();
