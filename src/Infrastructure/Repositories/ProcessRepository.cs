@@ -266,6 +266,46 @@ public sealed class ProcessRepository : IProcessRepository
             row.Description,
             row.IsActive);
 
+    public async Task<ProcessOwnerInfo?> GetOwnerInfoAsync(
+        int processId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                p.process_id AS ProcessId,
+                p.owner_id AS OwnerPersonId,
+                pr.user_id AS OwnerUserId,
+                p.is_process_active AS IsActive
+            FROM org.processes p
+            LEFT JOIN org.persons pr ON pr.person_id = p.owner_id
+            WHERE p.process_id = @ProcessId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var row = await connection.QuerySingleOrDefaultAsync<OwnerInfoRow>(
+            new CommandDefinition(
+                sql,
+                new { ProcessId = processId },
+                cancellationToken: cancellationToken));
+
+        if (row is null) return null;
+
+        return new ProcessOwnerInfo(
+            row.ProcessId,
+            row.OwnerPersonId,
+            row.OwnerUserId,
+            row.IsActive);
+    }
+
+    private sealed class OwnerInfoRow
+    {
+        public int ProcessId { get; init; }
+        public int OwnerPersonId { get; init; }
+        public int? OwnerUserId { get; init; }
+        public bool IsActive { get; init; }
+    }
+
     private sealed class ProcessRow
     {
         public int Id { get; init; }

@@ -1,0 +1,547 @@
+using Application.Abstractions;
+using Application.Org.Processes;
+using Application.Risk.Risks;
+using Domain.Assessment;
+using Domain.Org;
+using Domain.Risk;
+using Moq;
+
+namespace OnionRiskPlatform.Tests.Risk;
+
+public class RiskServiceTests
+{
+    private readonly Mock<IRiskRepository> _riskRepository;
+    private readonly Mock<IRiskProcessRepository> _riskProcessRepository;
+    private readonly Mock<IRiskAssessmentRepository> _riskAssessmentRepository;
+    private readonly Mock<IUserPermissionService> _permissionService;
+    private readonly Mock<IAssetRepository> _assetRepository;
+    private readonly Mock<IProcessRepository> _processRepository;
+    private readonly RiskService _service;
+
+    public RiskServiceTests()
+    {
+        _riskRepository = new Mock<IRiskRepository>();
+        _riskProcessRepository = new Mock<IRiskProcessRepository>();
+        _riskAssessmentRepository = new Mock<IRiskAssessmentRepository>();
+        _permissionService = new Mock<IUserPermissionService>();
+        _assetRepository = new Mock<IAssetRepository>();
+        _processRepository = new Mock<IProcessRepository>();
+
+        _service = new RiskService(
+            _riskRepository.Object,
+            _riskProcessRepository.Object,
+            _riskAssessmentRepository.Object,
+            _permissionService.Object,
+            _assetRepository.Object,
+            _processRepository.Object);
+    }
+
+    #region GetAllAsync Tests
+
+    [Fact]
+    public async Task GetAllAsync_WithPermission_ReturnsRisks()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "view_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+        var risks = new[]
+        {
+            new RiskListItem(1, "Test Risk", Array.Empty<string>(), Array.Empty<string>(),
+                Array.Empty<string>(), null, null, null, null, null, null, "Draft", null)
+        };
+        _riskRepository.Setup(r => r.GetAllAsync(CancellationToken.None))
+            .ReturnsAsync(risks);
+
+        // Act
+        var result = await _service.GetAllAsync(1);
+
+        // Assert
+        result.Should().HaveCount(1);
+        result[0].RiskTitle.Should().Be("Test Risk");
+    }
+
+    [Fact]
+    public async Task GetAllAsync_WithoutPermission_ThrowsPermissionException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "view_risk", CancellationToken.None))
+            .ReturnsAsync(false);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskPermissionException>(() =>
+            _service.GetAllAsync(1));
+    }
+
+    #endregion
+
+    #region CreateAsync Tests
+
+    [Fact]
+    public async Task CreateAsync_ValidInput_CreatesRisk()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var ownerInfo = new ProcessOwnerInfo(1, 5, 1, true);
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync(ownerInfo);
+
+        _assetRepository.Setup(a => a.GetByIdAsync(It.IsAny<int>(), CancellationToken.None))
+            .ReturnsAsync((Domain.Org.Asset?)null);
+
+        _riskRepository.Setup(r => r.CreateAsync(It.IsAny<Domain.Risk.Risk>(), CancellationToken.None))
+            .ReturnsAsync(42);
+        _riskProcessRepository.Setup(r => r.CreateAsync(It.IsAny<RiskProcess>(), CancellationToken.None))
+            .ReturnsAsync(1);
+
+        var request = new CreateRiskRequest(
+            "Test Risk",
+            "Description",
+            1, 2, null,
+            new[] { 1 });
+
+        // Act
+        var result = await _service.CreateAsync(1, request);
+
+        // Assert
+        result.Should().Be(42);
+        _riskRepository.Verify(r => r.CreateAsync(It.IsAny<Domain.Risk.Risk>(), CancellationToken.None), Times.Once);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WithoutCreateComponentsPermission_ThrowsPermissionException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(false);
+
+        var request = new CreateRiskRequest(
+            "Test Risk", "Description", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskPermissionException>(() =>
+            _service.CreateAsync(1, request));
+    }
+
+    [Fact]
+    public async Task CreateAsync_InactiveProcess_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var ownerInfo = new ProcessOwnerInfo(1, 5, 1, false);
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync(ownerInfo);
+
+        var request = new CreateRiskRequest(
+            "Test Risk", "Description", 1, 2, null,
+            new[] { 1 });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.CreateAsync(1, request));
+        ex.Message.Should().Contain("неактивен");
+    }
+
+    [Fact]
+    public async Task CreateAsync_ProcessNotFound_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync((ProcessOwnerInfo?)null);
+
+        var request = new CreateRiskRequest(
+            "Test Risk", "Description", 1, 2, null,
+            new[] { 1 });
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.CreateAsync(1, request));
+    }
+
+    [Fact]
+    public async Task CreateAsync_InactiveAsset_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var ownerInfo = new ProcessOwnerInfo(1, 5, 1, true);
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync(ownerInfo);
+
+        var asset = Domain.Org.Asset.Rehydrate(1, "Asset", "INV001", 100m, false);
+        _assetRepository.Setup(a => a.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(asset);
+
+        var request = new CreateRiskRequest(
+            "Test Risk", "Description", 1, 2, 1,
+            new[] { 1 });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.CreateAsync(1, request));
+        ex.Message.Should().Contain("неактивен");
+    }
+
+    [Fact]
+    public async Task CreateAsync_AssetWithoutHourCost_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var ownerInfo = new ProcessOwnerInfo(1, 5, 1, true);
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync(ownerInfo);
+
+        var asset = Domain.Org.Asset.Rehydrate(1, "Asset", "INV001", 0m, true);
+        _assetRepository.Setup(a => a.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(asset);
+
+        var request = new CreateRiskRequest(
+            "Test Risk", "Description", 1, 2, 1,
+            new[] { 1 });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.CreateAsync(1, request));
+        ex.Message.Should().Contain("стоимость часа");
+    }
+
+    [Fact]
+    public async Task CreateAsync_EmptyTitle_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "create_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var ownerInfo = new ProcessOwnerInfo(1, 5, 1, true);
+        _processRepository.Setup(p => p.GetOwnerInfoAsync(1, CancellationToken.None))
+            .ReturnsAsync(ownerInfo);
+
+        var request = new CreateRiskRequest(
+            "", "Description", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.CreateAsync(1, request));
+    }
+
+    #endregion
+
+    #region UpdateAsync Tests
+
+    [Fact]
+    public async Task UpdateAsync_ValidDraftInput_UpdatesRisk()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Old Title", "Desc", 1, 2, 1, null,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskProcessRepository.Setup(r => r.GetPrimaryOwnerUserIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(1);
+        _assetRepository.Setup(a => a.GetByIdAsync(It.IsAny<int>(), CancellationToken.None))
+            .ReturnsAsync((Domain.Org.Asset?)null);
+        _riskRepository.Setup(r => r.UpdateAsync(risk, CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var request = new UpdateRiskRequest(
+            "New Title", "New Description", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act
+        var result = await _service.UpdateAsync(1, 1, request);
+
+        // Assert
+        result.Should().Be(1);
+        risk.Title.Should().Be("New Title");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NotDraftStatus_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Open", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+
+        var request = new UpdateRiskRequest(
+            "New Title", "Desc", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.UpdateAsync(1, 1, request));
+        ex.Message.Should().Contain("Черновик");
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NotOwner_ThrowsAuthorizationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskProcessRepository.Setup(r => r.GetPrimaryOwnerUserIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(99);
+
+        var request = new UpdateRiskRequest(
+            "New Title", "Desc", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskAuthorizationException>(() =>
+            _service.UpdateAsync(1, 1, request));
+    }
+
+    [Fact]
+    public async Task UpdateAsync_NotFound_ThrowsNotFoundException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        _riskRepository.Setup(r => r.GetByIdAsync(99, CancellationToken.None))
+            .ReturnsAsync((Domain.Risk.Risk?)null);
+
+        var request = new UpdateRiskRequest(
+            "Title", "Desc", 1, 2, null,
+            Array.Empty<int>());
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskNotFoundException>(() =>
+            _service.UpdateAsync(99, 1, request));
+        ex.Message.Should().Contain("99");
+    }
+
+    #endregion
+
+    #region AssessAsync Tests
+
+    [Fact]
+    public async Task AssessAsync_WithoutAsset_UsesManualLossAmount()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskAssessmentRepository.Setup(r => r.HasActiveAssessmentAsync(1, CancellationToken.None))
+            .ReturnsAsync(false);
+        _riskAssessmentRepository.Setup(r => r.GetImpactRangeForAmountAsync(5000, CancellationToken.None))
+            .ReturnsAsync(new ImpactRange(1, 1000, 10000));
+        _riskAssessmentRepository.Setup(r => r.GetAssessmentWeightsAsync(1, 1, CancellationToken.None))
+            .ReturnsAsync((3, 2));
+        _riskAssessmentRepository.Setup(r => r.GetAcceptanceThresholdsAsync(1, CancellationToken.None))
+            .ReturnsAsync(new AcceptanceThresholds(6, 12, 20));
+        _riskAssessmentRepository.Setup(r => r.CreateAsync(It.IsAny<RiskAssessment>(), CancellationToken.None))
+            .ReturnsAsync(100);
+        _riskRepository.Setup(r => r.UpdateStatusAsync(1, "Open", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act
+        var result = await _service.AssessAsync(1, 1, request);
+
+        // Assert
+        result.AssessmentId.Should().Be(100);
+        result.RiskScore.Should().Be(6);
+        result.AcceptanceLevel.Should().Be("Owner");
+        result.RiskStatus.Should().Be("Open");
+    }
+
+    [Fact]
+    public async Task AssessAsync_WithAsset_CalculatesDowntimeAndLoss()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, 1,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskAssessmentRepository.Setup(r => r.HasActiveAssessmentAsync(1, CancellationToken.None))
+            .ReturnsAsync(false);
+        _riskAssessmentRepository.Setup(r => r.GetAssetHourCostAsync(1, CancellationToken.None))
+            .ReturnsAsync(100m);
+        _riskAssessmentRepository.Setup(r => r.GetAssessmentWeightsAsync(1, 2, CancellationToken.None))
+            .ReturnsAsync((3, 4));
+        _riskAssessmentRepository.Setup(r => r.GetAcceptanceThresholdsAsync(1, CancellationToken.None))
+            .ReturnsAsync(new AcceptanceThresholds(6, 12, 20));
+        _riskAssessmentRepository.Setup(r => r.CreateAsync(It.IsAny<RiskAssessment>(), CancellationToken.None))
+            .ReturnsAsync(101);
+        _riskRepository.Setup(r => r.UpdateStatusAsync(1, "Open", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        // 1 week * 168 + 0 days * 24 + 0 hours = 168 hours
+        // 168 * 100 = 16800
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 0,
+            DowntimeWeeks: 1,
+            DowntimeDays: 0,
+            DowntimeHours: 0);
+
+        // Act
+        _riskAssessmentRepository.Setup(r => r.GetImpactRangeForAmountAsync(16800, CancellationToken.None))
+            .ReturnsAsync(new ImpactRange(2, 10000, 100000));
+        var result = await _service.AssessAsync(1, 1, request);
+
+        // Assert
+        result.AssessmentId.Should().Be(101);
+        result.RiskScore.Should().Be(12);
+        result.AcceptanceLevel.Should().Be("Director");
+    }
+
+    [Fact]
+    public async Task AssessAsync_ConcurrentAssessment_ThrowsConflictException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskAssessmentRepository.Setup(r => r.HasActiveAssessmentAsync(1, CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskConflictException>(() =>
+            _service.AssessAsync(1, 1, request));
+        ex.Message.Should().Contain("Конкурирующая оценка");
+    }
+
+    [Fact]
+    public async Task AssessAsync_NotDraftStatus_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Open", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.AssessAsync(1, 1, request));
+        ex.Message.Should().Contain("Черновик");
+    }
+
+    [Fact]
+    public async Task AssessAsync_MissingFields_ThrowsValidationException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
+            "Draft", null, null);
+        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
+            .ReturnsAsync(risk);
+        _riskAssessmentRepository.Setup(r => r.HasActiveAssessmentAsync(1, CancellationToken.None))
+            .ReturnsAsync(false);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 0, // Invalid
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskValidationException>(() =>
+            _service.AssessAsync(1, 1, request));
+    }
+
+    [Fact]
+    public async Task AssessAsync_WithoutAssessRiskPermission_ThrowsPermissionException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(false);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<RiskPermissionException>(() =>
+            _service.AssessAsync(1, 1, request));
+    }
+
+    [Fact]
+    public async Task AssessAsync_RiskNotFound_ThrowsNotFoundException()
+    {
+        // Arrange
+        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+            .ReturnsAsync(true);
+
+        _riskRepository.Setup(r => r.GetByIdAsync(99, CancellationToken.None))
+            .ReturnsAsync((Domain.Risk.Risk?)null);
+
+        var request = new AssessRiskRequest(
+            LikelihoodLevelId: 1,
+            LossAmount: 5000,
+            DowntimeWeeks: null,
+            DowntimeDays: null,
+            DowntimeHours: null);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsAsync<RiskNotFoundException>(() =>
+            _service.AssessAsync(99, 1, request));
+        ex.Message.Should().Contain("99");
+    }
+
+    #endregion
+}

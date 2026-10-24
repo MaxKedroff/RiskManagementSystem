@@ -147,6 +147,53 @@ public sealed class Risk : Entity
 
     private Risk() { }
 
+    public static Risk Rehydrate(
+        int id,
+        string title,
+        string description,
+        int hazardId,
+        int categoryId,
+        int authorId,
+        int? assetId,
+        string status,
+        string? acceptanceLevel,
+        string? closeReason)
+    {
+        var risk = new Risk(title, description, hazardId, categoryId, authorId, assetId)
+        {
+            Id = id,
+            Status = MapStatus(status),
+            AcceptanceLevel = MapAcceptanceLevel(acceptanceLevel),
+            CloseReason = closeReason
+        };
+        return risk;
+    }
+
+    private static RiskStatus MapStatus(string status)
+    {
+        return status switch
+        {
+            "Draft" => RiskStatus.Draft,
+            "Open" => RiskStatus.Open,
+            "InTreatment" => RiskStatus.InTreatment,
+            "Accepted" => RiskStatus.Accepted,
+            "Closed" => RiskStatus.Closed,
+            _ => throw new InvalidOperationException($"Unknown risk status: {status}")
+        };
+    }
+
+    private static RiskAcceptanceLevel? MapAcceptanceLevel(string? level)
+    {
+        return level switch
+        {
+            "Owner" => RiskAcceptanceLevel.Owner,
+            "Director" => RiskAcceptanceLevel.Director,
+            "Ceo" => RiskAcceptanceLevel.Ceo,
+            null => null,
+            _ => null
+        };
+    }
+
     public Risk(
         string title,
         string description,
@@ -225,6 +272,14 @@ public sealed class Risk : Entity
             CloseReason = null;
             AcceptanceLevel = null;
         }
+    }
+
+    public void Activate()
+    {
+        if (Status is not RiskStatus.Draft)
+            throw new DomainException("Нельзя активировать риск в текущем статусе.");
+
+        Status = RiskStatus.Open;
     }
 
     public void Close(string reason)

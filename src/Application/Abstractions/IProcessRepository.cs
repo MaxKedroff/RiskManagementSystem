@@ -21,4 +21,12 @@ public interface IProcessRepository
     Task<bool> UserExistsAsync(int userId, CancellationToken cancellationToken = default);
 
     Task<bool> UserHasRoleAsync(int userId, string roleCode, CancellationToken cancellationToken = default);
+
+    Task<ProcessOwnerInfo?> GetOwnerInfoAsync(int processId, CancellationToken cancellationToken = default);
 }
+
+public sealed record ProcessOwnerInfo(
+    int ProcessId,
+    int OwnerPersonId,
+    int? OwnerUserId,
+    bool IsActive);

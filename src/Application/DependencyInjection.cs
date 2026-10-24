@@ -11,6 +11,7 @@ using Application.Import.FileUploads;
 using Application.Risk.Categories;
 using Application.Risk.HazardGroups;
 using Application.Risk.Hazards;
+using Application.Risk.Risks;
 using Application.Treatment.ApprovalSettings;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -35,6 +36,8 @@ namespace Application
             services.AddScoped<RiskAcceptanceSettingsService>();
             services.AddScoped<TreatmentApprovalSettingsService>();
             services.AddScoped<FileUploadService>();
+            services.AddScoped<RiskService>();
+            services.AddScoped<UserPermissionService>();
 
 
 
