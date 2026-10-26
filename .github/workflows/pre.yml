@@ -92,6 +92,8 @@ jobs:
           
           echo "Checking container status..."
           docker compose ps
+
+          echo "test"
           
           echo "Deployment completed successfully!"
           end workflow
