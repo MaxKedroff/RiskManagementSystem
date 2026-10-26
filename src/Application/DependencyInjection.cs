@@ -1,4 +1,5 @@
-﻿using Application.Comments;
+﻿using Application.Abstractions;
+using Application.Comments;
 using Application.Org.Assets;
 using Application.Org.Directorates;
 using Application.Org.Persons;
@@ -39,7 +40,7 @@ namespace Application
             services.AddScoped<TreatmentApprovalSettingsService>();
             services.AddScoped<FileUploadService>();
             services.AddScoped<RiskService>();
-            services.AddScoped<UserPermissionService>();
+            services.AddScoped<IUserPermissionService, UserPermissionService>();
             services.AddScoped<TreatmentService>();
             services.AddScoped<CommentService>();
 
