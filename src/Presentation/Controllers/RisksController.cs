@@ -298,18 +298,21 @@ public sealed class RisksController : ControllerBase
     }
 
     [HttpPost("{id:int}/reassess")]
-    [ProducesResponseType(typeof(ReassessRiskResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ReassessRiskResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Reassess(int id, CancellationToken cancellationToken)
+    public async Task<IActionResult> Reassess(
+        int id,
+        [FromBody] ReassessRiskRequest request,
+        CancellationToken cancellationToken)
     {
         try
         {
             var userId = GetUserId();
-            var response = await _service.ReassessAsync(id, userId, cancellationToken);
-            return Ok(response);
+            var response = await _service.ReassessAsync(id, userId, request, cancellationToken);
+            return StatusCode(StatusCodes.Status201Created, response);
         }
         catch (RiskValidationException ex)
         {
@@ -326,6 +329,39 @@ public sealed class RisksController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to reassess risk {RiskId}.", id);
+            return Problem(statusCode: 500, title: "Внутренняя ошибка сервера.");
+        }
+    }
+
+    [HttpPost("{id:int}/reset-reassessment")]
+    [ProducesResponseType(typeof(ResetReassessmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ResetReassessment(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = GetUserId();
+            var response = await _service.ResetForReassessmentAsync(id, userId, cancellationToken);
+            return Ok(response);
+        }
+        catch (RiskValidationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (RiskNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (RiskPermissionException ex)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to reset reassessment for risk {RiskId}.", id);
             return Problem(statusCode: 500, title: "Внутренняя ошибка сервера.");
         }
     }

@@ -17,7 +17,19 @@ namespace Application.Abstractions
         Task<bool> UpdateResponseModeAsync(int assessmentId, string responseMode, CancellationToken cancellationToken = default);
         Task<bool> DeactivateAssessmentAsync(int riskId, CancellationToken cancellationToken = default);
         Task<int?> GetActiveAssessmentIdAsync(int riskId, CancellationToken cancellationToken = default);
+        Task<PreviousAssessment?> GetPreviousAssessmentAsync(int riskId, CancellationToken cancellationToken = default);
     }
+
+    public sealed record PreviousAssessment(
+        int LikelihoodLevelId,
+        int ImpactLevelId,
+        decimal LossAmount,
+        decimal? DowntimeWeeks,
+        decimal? DowntimeDays,
+        decimal? DowntimeHours,
+        int RiskScore,
+        string? LikelihoodName,
+        string? ImpactName);
 
     public sealed record ImpactRange(
         int ImpactLevelId,

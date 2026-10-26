@@ -37,6 +37,9 @@
         <Execute>
           <option name="pattern" value="git push *" />
         </Execute>
+        <Execute>
+          <option name="pattern" value="cd *" />
+        </Execute>
       </list>
     </option>
   </component>

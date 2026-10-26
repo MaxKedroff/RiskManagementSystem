@@ -268,6 +268,54 @@ public sealed class RiskAssessmentRepository : IRiskAssessmentRepository
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<PreviousAssessment?> GetPreviousAssessmentAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                a.likelihood_level_id AS LikelihoodLevelId,
+                a.impact_level_id AS ImpactLevelId,
+                a.loss_amount AS LossAmount,
+                a.downtime_weeks AS DowntimeWeeks,
+                a.downtime_days AS DowntimeDays,
+                a.downtime_hours AS DowntimeHours,
+                a.risk_score AS RiskScore,
+                ll.likelihood_level_name AS LikelihoodName,
+                il.impact_level_name AS ImpactName
+            FROM assessment.assessments a
+            LEFT JOIN assessment.likelihood_levels ll
+                ON ll.likelihood_level_id = a.likelihood_level_id
+            LEFT JOIN assessment.impact_levels il
+                ON il.impact_level_id = a.impact_level_id
+            WHERE a.risk_id = @RiskId
+              AND a.is_active = FALSE
+            ORDER BY a.created_at DESC
+            LIMIT 1;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var row = await connection.QuerySingleOrDefaultAsync<PreviousAssessmentRow>(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId },
+                cancellationToken: cancellationToken));
+
+        if (row is null) return null;
+
+        return new PreviousAssessment(
+            row.LikelihoodLevelId,
+            row.ImpactLevelId,
+            row.LossAmount,
+            row.DowntimeWeeks,
+            row.DowntimeDays,
+            row.DowntimeHours,
+            row.RiskScore,
+            row.LikelihoodName,
+            row.ImpactName);
+    }
+
     private sealed class ImpactRangeRow
     {
         public int ImpactLevelId { get; init; }
@@ -286,5 +334,18 @@ public sealed class RiskAssessmentRepository : IRiskAssessmentRepository
     {
         public int LikelihoodWeight { get; init; }
         public int ImpactWeight { get; init; }
+    }
+
+    private sealed class PreviousAssessmentRow
+    {
+        public int LikelihoodLevelId { get; init; }
+        public int ImpactLevelId { get; init; }
+        public decimal LossAmount { get; init; }
+        public decimal? DowntimeWeeks { get; init; }
+        public decimal? DowntimeDays { get; init; }
+        public decimal? DowntimeHours { get; init; }
+        public int RiskScore { get; init; }
+        public string? LikelihoodName { get; init; }
+        public string? ImpactName { get; init; }
     }
 }

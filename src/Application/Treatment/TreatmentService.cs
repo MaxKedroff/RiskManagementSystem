@@ -1,4 +1,5 @@
 using Application.Abstractions;
+using Application.Risk.Risks;
 using Domain.Treatment;
 
 namespace Application.Treatment;
@@ -10,19 +11,22 @@ public sealed class TreatmentService
     private readonly IUserPermissionService _permissionService;
     private readonly IProcessRepository _processRepository;
     private readonly ITreatmentApprovalSettingsRepository _approvalSettingsRepository;
+    private readonly RiskService _riskService;
 
     public TreatmentService(
         ITreatmentRepository treatmentRepository,
         IApprovalRequestRepository approvalRequestRepository,
         IUserPermissionService permissionService,
         IProcessRepository processRepository,
-        ITreatmentApprovalSettingsRepository approvalSettingsRepository)
+        ITreatmentApprovalSettingsRepository approvalSettingsRepository,
+        RiskService riskService)
     {
         _treatmentRepository = treatmentRepository;
         _approvalRequestRepository = approvalRequestRepository;
         _permissionService = permissionService;
         _processRepository = processRepository;
         _approvalSettingsRepository = approvalSettingsRepository;
+        _riskService = riskService;
     }
 
     // POST /v1/treatments
@@ -425,11 +429,22 @@ public sealed class TreatmentService
         treatment.Complete(request.TreatmentCostAct);
         await _treatmentRepository.UpdateAsync(treatment, cancellationToken);
 
-        var riskStatus = hasOtherActiveTreatments
-            ? await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown"
-            : "AwaitingReassessment";
+        if (hasOtherActiveTreatments)
+        {
+            // Active treatments remain — only update treatment status (already done)
+            var currentRiskStatus = await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown";
+            return new CompleteResponse(treatmentId, "Completed", currentRiskStatus, false, false);
+        }
 
-        return new CompleteResponse(treatmentId, "Completed", riskStatus);
+        // No active treatments remain — trigger system cycle completion
+        var cycleResult = await _riskService.CompleteCycleAsync(riskId, cancellationToken);
+
+        return new CompleteResponse(
+            treatmentId,
+            "Completed",
+            cycleResult.RiskStatus,
+            cycleResult.CycleCompleted,
+            cycleResult.HasDraftsWarning);
     }
 
     // POST /v1/treatments/{id}/cancel
@@ -464,11 +479,21 @@ public sealed class TreatmentService
             }
         }
 
-        var riskStatus = hasOtherActiveTreatments
-            ? await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown"
-            : "AwaitingReassessment";
+        if (hasOtherActiveTreatments)
+        {
+            var currentRiskStatus = await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown";
+            return new CancelResponse(treatmentId, "Cancelled", currentRiskStatus, false, false);
+        }
 
-        return new CancelResponse(treatmentId, "Cancelled", riskStatus);
+        // No active treatments remain — trigger system cycle completion
+        var cycleResult = await _riskService.CompleteCycleAsync(riskId, cancellationToken);
+
+        return new CancelResponse(
+            treatmentId,
+            "Cancelled",
+            cycleResult.RiskStatus,
+            cycleResult.CycleCompleted,
+            cycleResult.HasDraftsWarning);
     }
 }
 
@@ -505,8 +530,8 @@ public sealed record RemoveAssigneeResponse(int TreatmentId);
 public sealed record StartResponse(int TreatmentId, string TreatmentStatus);
 public sealed record HoldResponse(int TreatmentId, string TreatmentStatus);
 public sealed record ResumeResponse(int TreatmentId, string TreatmentStatus);
-public sealed record CompleteResponse(int TreatmentId, string TreatmentStatus, string RiskStatus);
-public sealed record CancelResponse(int TreatmentId, string TreatmentStatus, string RiskStatus);
+public sealed record CompleteResponse(int TreatmentId, string TreatmentStatus, string RiskStatus, bool CycleCompleted, bool HasDraftsWarning);
+public sealed record CancelResponse(int TreatmentId, string TreatmentStatus, string RiskStatus, bool CycleCompleted, bool HasDraftsWarning);
 
 // Exceptions
 public sealed class TreatmentValidationException(string message) : Exception(message);

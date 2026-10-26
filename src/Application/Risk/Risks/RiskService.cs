@@ -547,8 +547,133 @@ public sealed class RiskService
         return new TransferRiskResponse(riskId, "transfer", "AwaitingReassessment");
     }
 
-    // POST /v1/risks/{id}/reassess
+    // POST /v1/risks/{id}/reassess — full reassessment with new parameters
     public async Task<ReassessRiskResponse> ReassessAsync(
+        int riskId,
+        int userId,
+        ReassessRiskRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _permissionService.HasRightAsync(userId, "assess_risk", cancellationToken))
+            throw new RiskPermissionException("Отсутствует право assess_risk.");
+
+        var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
+            ?? throw new RiskNotFoundException(riskId);
+
+        if (risk.Status != Domain.Risk.RiskStatus.AwaitingReassessment)
+            throw new RiskValidationException("Риск должен быть в статусе 'Ожидает переоценки'.");
+
+        // Check no active assessment exists
+        if (await _riskAssessmentRepository.HasActiveAssessmentAsync(riskId, cancellationToken))
+            throw new RiskValidationException("Для риска уже существует активная оценка.");
+
+        // Validate required fields
+        if (request.LikelihoodLevelId <= 0)
+            throw new RiskValidationException("Необходимо указать уровень вероятности (likelihoodLevelId).");
+
+        // Calculate lossAmount
+        decimal lossAmount;
+        decimal? downtimeTotalHours = null;
+        decimal? hourlyDowntimeCost = null;
+        decimal? downtimeWeeks = null;
+        decimal? downtimeDays = null;
+        decimal? downtimeHours = null;
+
+        if (risk.AssetId.HasValue)
+        {
+            // Asset is filled: calculate downtime and loss
+            if (request.DowntimeWeeks is null && request.DowntimeDays is null && request.DowntimeHours is null)
+            {
+                throw new RiskValidationException("Необходимо заполнить параметры простоя (downtimeWeeks, downtimeDays, downtimeHours).");
+            }
+
+            downtimeWeeks = request.DowntimeWeeks ?? 0;
+            downtimeDays = request.DowntimeDays ?? 0;
+            downtimeHours = request.DowntimeHours ?? 0;
+
+            downtimeTotalHours = downtimeWeeks.Value * 168 + downtimeDays.Value * 24 + downtimeHours.Value;
+
+            var assetHourCost = await _riskAssessmentRepository.GetAssetHourCostAsync(risk.AssetId.Value, cancellationToken);
+            if (assetHourCost is null || assetHourCost.Value <= 0)
+            {
+                throw new RiskValidationException("Для указанного объекта не задана hourlyDowntimeCost (стоимость простоя в час).");
+            }
+
+            hourlyDowntimeCost = assetHourCost.Value;
+            lossAmount = decimal.Round(downtimeTotalHours.Value * hourlyDowntimeCost.Value, 2, MidpointRounding.AwayFromZero);
+        }
+        else
+        {
+            // No asset: use manual lossAmount
+            if (request.LossAmount < 0)
+            {
+                throw new RiskValidationException("Сумма потерь не может быть отрицательной.");
+            }
+            lossAmount = request.LossAmount;
+        }
+
+        // Determine impactLevelId by monetary range
+        var impactRange = await _riskAssessmentRepository.GetImpactRangeForAmountAsync(lossAmount, cancellationToken)
+            ?? throw new RiskValidationException("Не удалось определить уровень влияния по сумме потерь. Проверьте справочник уровней влияния.");
+
+        // Get weights and calculate riskScore
+        var (likelihoodWeight, impactWeight) = await _riskAssessmentRepository.GetAssessmentWeightsAsync(
+            request.LikelihoodLevelId,
+            impactRange.ImpactLevelId,
+            cancellationToken);
+
+        var riskScore = likelihoodWeight * impactWeight;
+
+        // Determine acceptanceLevel by thresholds
+        var thresholds = await _riskAssessmentRepository.GetAcceptanceThresholdsAsync(_assessmentMethodId, cancellationToken);
+        string acceptanceLevel;
+
+        if (thresholds is not null)
+        {
+            if (riskScore <= thresholds.OwnerMaxScore)
+                acceptanceLevel = "Owner";
+            else if (riskScore <= thresholds.DirectorMaxScore)
+                acceptanceLevel = "Director";
+            else
+                acceptanceLevel = "Ceo";
+        }
+        else
+        {
+            // Fallback: use simple thresholds
+            acceptanceLevel = riskScore <= 4 ? "Owner" : riskScore <= 9 ? "Director" : "Ceo";
+        }
+
+        // Create Assessment with isActive = true, responseMode = null
+        var assessment = new RiskAssessment(
+            riskId,
+            _assessmentMethodId,
+            request.LikelihoodLevelId,
+            impactRange.ImpactLevelId,
+            lossAmount,
+            riskScore,
+            userId,
+            downtimeWeeks,
+            downtimeDays,
+            downtimeHours,
+            downtimeTotalHours,
+            hourlyDowntimeCost,
+            responseMode: null);
+
+        var assessmentId = await _riskAssessmentRepository.CreateAsync(assessment, cancellationToken);
+
+        // Set risk status based on score: score > 5 → "InTreatment", otherwise → "Open"
+        var newStatus = riskScore > 5 ? "InTreatment" : "Open";
+        await _riskRepository.UpdateStatusAsync(riskId, newStatus, cancellationToken);
+
+        return new ReassessRiskResponse(
+            assessmentId,
+            riskScore,
+            acceptanceLevel,
+            newStatus);
+    }
+
+    // POST /v1/risks/{id}/reset-reassessment — reset risk to awaiting reassessment (legacy)
+    public async Task<ResetReassessmentResponse> ResetForReassessmentAsync(
         int riskId,
         int userId,
         CancellationToken cancellationToken = default)
@@ -588,7 +713,58 @@ public sealed class RiskService
             await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
         }
 
-        return new ReassessRiskResponse(riskId, "AwaitingReassessment");
+        return new ResetReassessmentResponse(riskId, "AwaitingReassessment");
+    }
+
+    // System process: called when the last active treatment is completed
+    // Checks all treatments → if none active: deactivate assessment → risk → AwaitingReassessment
+    public async Task<CycleCompletionResult> CompleteCycleAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
+            ?? throw new RiskNotFoundException(riskId);
+
+        // Get all active process IDs for this risk
+        var activeProcessIds = await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken);
+
+        // Check if any process still has active (non-terminal) treatments
+        var hasOtherActiveTreatments = false;
+        foreach (var processId in activeProcessIds)
+        {
+            if (await _treatmentRepository.HasNonTerminalTreatmentAsync(processId, cancellationToken))
+            {
+                hasOtherActiveTreatments = true;
+                break;
+            }
+        }
+
+        if (hasOtherActiveTreatments)
+        {
+            // Active treatments remain — only update treatment status (already done)
+            return new CycleCompletionResult(
+                false,
+                false,
+                await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown");
+        }
+
+        // No active treatments remain — complete the cycle
+        // Deactivate current assessment if exists
+        if (await _riskAssessmentRepository.HasActiveAssessmentAsync(riskId, cancellationToken))
+        {
+            await _riskAssessmentRepository.DeactivateAssessmentAsync(riskId, cancellationToken);
+        }
+
+        // Check for draft risks (warning)
+        var hasDrafts = await _riskRepository.IsActiveDraftAsync(riskId, cancellationToken);
+
+        // Set risk to AwaitingReassessment
+        await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
+
+        return new CycleCompletionResult(
+            true,
+            hasDrafts,
+            "AwaitingReassessment");
     }
 
     // POST /v1/risks/{id}/close
@@ -718,8 +894,28 @@ public sealed record AcceptRiskResponse(int RiskId, string RiskStatus, string Re
 public sealed record TreatRiskResponse(int RiskId, string ResponseMode);
 public sealed record SplitRiskResponse(int RiskId, string ResponseMode);
 public sealed record TransferRiskResponse(int RiskId, string ResponseMode, string RiskStatus);
-public sealed record ReassessRiskResponse(int RiskId, string RiskStatus);
+public sealed record ReassessRiskResponse(
+    int AssessmentId,
+    int RiskScore,
+    string AcceptanceLevel,
+    string RiskStatus);
+
+public sealed record ResetReassessmentResponse(int RiskId, string RiskStatus);
 public sealed record CloseRiskResponse(int RiskId, string RiskStatus);
+
+// Reassess request DTO
+public sealed record ReassessRiskRequest(
+    int LikelihoodLevelId,
+    decimal LossAmount,
+    decimal? DowntimeWeeks,
+    decimal? DowntimeDays,
+    decimal? DowntimeHours);
+
+// Cycle completion result
+public sealed record CycleCompletionResult(
+    bool CycleCompleted,
+    bool HasDraftsWarning,
+    string RiskStatus);
 
 // Exceptions
 public sealed class RiskValidationException(string message) : Exception(message);
