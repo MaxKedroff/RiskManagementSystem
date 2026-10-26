@@ -1,4 +1,5 @@
-﻿using Application.Org.Assets;
+﻿using Application.Comments;
+using Application.Org.Assets;
 using Application.Org.Directorates;
 using Application.Org.Persons;
 using Application.Org.Processes;
@@ -40,6 +41,7 @@ namespace Application
             services.AddScoped<RiskService>();
             services.AddScoped<UserPermissionService>();
             services.AddScoped<TreatmentService>();
+            services.AddScoped<CommentService>();
 
 
 

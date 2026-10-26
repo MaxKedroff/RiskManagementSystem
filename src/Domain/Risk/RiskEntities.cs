@@ -179,6 +179,7 @@ public sealed class Risk : Entity
             "InTreatment" => RiskStatus.InTreatment,
             "Accepted" => RiskStatus.Accepted,
             "Closed" => RiskStatus.Closed,
+            "AwaitingReassessment" => RiskStatus.AwaitingReassessment,
             _ => throw new InvalidOperationException($"Unknown risk status: {status}")
         };
     }
@@ -336,10 +337,31 @@ public sealed class RiskComment : Entity
     public string Text { get; private set; } = string.Empty;
     public string EntityType { get; private set; } = string.Empty;
     public int EntityId { get; private set; }
+    public bool IsActive { get; private set; } = true;
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? UpdatedAt { get; private set; }
 
     private RiskComment() { }
+
+    public static RiskComment Rehydrate(
+        int id,
+        int authorId,
+        string text,
+        string entityType,
+        int entityId,
+        bool isActive,
+        DateTimeOffset createdAt,
+        DateTimeOffset? updatedAt)
+    {
+        var comment = new RiskComment(authorId, text, entityType, entityId)
+        {
+            Id = id,
+            IsActive = isActive,
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt
+        };
+        return comment;
+    }
 
     public RiskComment(int authorId, string text, string entityType, int entityId)
     {
@@ -355,8 +377,19 @@ public sealed class RiskComment : Entity
 
     public void Edit(string text)
     {
+        if (!IsActive)
+            throw new DomainException("Нельзя редактировать удалённый комментарий.");
+
         Text = Required(text, int.MaxValue, nameof(text));
         UpdatedAt = DateTimeOffset.UtcNow;
+    }
+
+    public void Deactivate()
+    {
+        if (!IsActive)
+            throw new DomainException("Комментарий уже удалён.");
+
+        IsActive = false;
     }
 
     private static string Required(string value, int max, string name)

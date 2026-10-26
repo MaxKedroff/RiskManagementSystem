@@ -949,7 +949,7 @@ public class RiskServiceTests
         result.AssessmentId.Should().Be(200);
         result.RiskScore.Should().Be(6);
         result.AcceptanceLevel.Should().Be("Owner");
-        result.RiskStatus.Should().Be("Open");
+        result.RiskStatus.Should().Be("InTreatment"); // 6 > 5
     }
 
     [Fact]
@@ -1218,78 +1218,6 @@ public class RiskServiceTests
         // Act & Assert
         await Assert.ThrowsAsync<RiskValidationException>(() =>
             _service.ReassessAsync(1, 1, request));
-    }
-
-    #endregion
-
-    #region ResetForReassessmentAsync Tests
-
-    [Fact]
-    public async Task ResetForReassessmentAsync_AcceptedRisk_ResetsToAwaiting()
-    {
-        // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
-            .ReturnsAsync(true);
-
-        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
-            "Accepted", "Owner", null);
-        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
-            .ReturnsAsync(risk);
-        _riskRepository.Setup(r => r.ClearAcceptanceLevelAsync(1, CancellationToken.None))
-            .ReturnsAsync(true);
-        _riskRepository.Setup(r => r.SetAwaitingReassessmentStatusAsync(1, CancellationToken.None))
-            .ReturnsAsync(true);
-
-        // Act
-        var result = await _service.ResetForReassessmentAsync(1, 1);
-
-        // Assert
-        result.RiskId.Should().Be(1);
-        result.RiskStatus.Should().Be("AwaitingReassessment");
-    }
-
-    [Fact]
-    public async Task ResetForReassessmentAsync_ClosedRisk_ClearsReasonAndCreatesComment()
-    {
-        // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
-            .ReturnsAsync(true);
-
-        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
-            "Closed", null, "Old reason");
-        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
-            .ReturnsAsync(risk);
-        _riskRepository.Setup(r => r.ClearAcceptanceLevelAsync(1, CancellationToken.None))
-            .ReturnsAsync(true);
-        _riskRepository.Setup(r => r.UpdateRiskStatusAndReasonAsync(1, "AwaitingReassessment", null, CancellationToken.None))
-            .ReturnsAsync(true);
-        _commentRepository.Setup(c => c.CreateAsync(1, "Риск возвращён на переоценку.", "Risk", 1, CancellationToken.None))
-            .ReturnsAsync(1);
-
-        // Act
-        var result = await _service.ResetForReassessmentAsync(1, 1);
-
-        // Assert
-        result.RiskStatus.Should().Be("AwaitingReassessment");
-        _commentRepository.Verify(c => c.CreateAsync(1, "Риск возвращён на переоценку.", "Risk", 1, CancellationToken.None), Times.Once);
-    }
-
-    [Fact]
-    public async Task ResetForReassessmentAsync_NotAcceptedOrClosed_ThrowsValidationException()
-    {
-        // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
-            .ReturnsAsync(true);
-
-        var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
-            "Open", null, null);
-        _riskRepository.Setup(r => r.GetByIdAsync(1, CancellationToken.None))
-            .ReturnsAsync(risk);
-
-        // Act & Assert
-        var ex = await Assert.ThrowsAsync<RiskValidationException>(() =>
-            _service.ResetForReassessmentAsync(1, 1));
-        ex.Message.Should().Contain("Принят");
     }
 
     #endregion

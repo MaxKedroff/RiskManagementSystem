@@ -126,6 +126,7 @@ CREATE TABLE risk.comments (
     comment_text text NOT NULL,
     comment_entity_type varchar(50) NOT NULL,
     comment_entity_id integer NOT NULL,
+    is_comment_active boolean NOT NULL DEFAULT true,
     comment_created timestamptz NOT NULL DEFAULT now(),
     comment_updated timestamptz NOT NULL DEFAULT now()
 );
