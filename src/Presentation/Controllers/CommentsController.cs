@@ -7,7 +7,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/comments")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class CommentsController : ControllerBase
 {
     private readonly CommentService _service;

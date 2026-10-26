@@ -554,8 +554,8 @@ public sealed class RiskService
         ReassessRiskRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!await _permissionService.HasRightAsync(userId, "assess_risk", cancellationToken))
-            throw new RiskPermissionException("Отсутствует право assess_risk.");
+        if (!await _permissionService.HasRightAsync(userId, "edit_components", cancellationToken))
+            throw new RiskPermissionException("Отсутствует право edit_components.");
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);

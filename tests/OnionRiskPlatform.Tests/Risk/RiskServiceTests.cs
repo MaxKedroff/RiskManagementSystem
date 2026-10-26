@@ -911,11 +911,13 @@ public class RiskServiceTests
 
     #region ReassessAsync Tests (new - full reassessment)
 
+    // Note: All tests in this region mock "edit_components" permission (changed from "assess_risk")
+
     [Fact]
     public async Task ReassessAsync_WithoutAsset_CreatesNewAssessment()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -932,7 +934,7 @@ public class RiskServiceTests
             .ReturnsAsync(new AcceptanceThresholds(6, 12, 20));
         _riskAssessmentRepository.Setup(r => r.CreateAsync(It.IsAny<RiskAssessment>(), CancellationToken.None))
             .ReturnsAsync(200);
-        _riskRepository.Setup(r => r.UpdateStatusAsync(1, "Open", CancellationToken.None))
+        _riskRepository.Setup(r => r.UpdateStatusAsync(1, "InTreatment", CancellationToken.None))
             .ReturnsAsync(true);
 
         var request = new ReassessRiskRequest(
@@ -956,7 +958,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_WithAsset_CalculatesDowntimeAndLoss()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, 1,
@@ -999,7 +1001,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_ScoreAbove5_StatusIsInTreatment()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -1033,7 +1035,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_ScoreAt5_StatusIsOpen()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -1070,7 +1072,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_WrongStatus_ThrowsValidationException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -1090,7 +1092,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_ActiveAssessmentExists_ThrowsValidationException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -1109,10 +1111,10 @@ public class RiskServiceTests
     }
 
     [Fact]
-    public async Task ReassessAsync_WithoutAssessRiskPermission_ThrowsPermissionException()
+    public async Task ReassessAsync_WithoutEditComponentsPermission_ThrowsPermissionException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(false);
 
         var request = new ReassessRiskRequest(1, 5000, null, null, null);
@@ -1126,7 +1128,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_RiskNotFound_ThrowsNotFoundException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         _riskRepository.Setup(r => r.GetByIdAsync(99, CancellationToken.None))
@@ -1144,7 +1146,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_MissingDowntimeParams_ThrowsValidationException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, 1,
@@ -1171,7 +1173,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_NegativeLossAmount_ThrowsValidationException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
@@ -1198,7 +1200,7 @@ public class RiskServiceTests
     public async Task ReassessAsync_InvalidLikelihoodLevel_ThrowsValidationException()
     {
         // Arrange
-        _permissionService.Setup(p => p.HasRightAsync(1, "assess_risk", CancellationToken.None))
+        _permissionService.Setup(p => p.HasRightAsync(1, "edit_components", CancellationToken.None))
             .ReturnsAsync(true);
 
         var risk = Domain.Risk.Risk.Rehydrate(1, "Title", "Desc", 1, 2, 1, null,
