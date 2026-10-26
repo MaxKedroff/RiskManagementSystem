@@ -22,10 +22,15 @@ public sealed class UserRepository : IUserRepository
     {
         const string insertUserSql = """
             INSERT INTO roles.users
-                (user_fio, user_email, user_password_hash, is_user_active, person_id, directorate_id, responsibility_type)
+                (user_fio, user_email, user_password_hash, is_user_active)
             VALUES
-                (@FullName, @Email, @PasswordHash, TRUE, @PersonId, @DirectorateId, @ResponsibilityType)
+                (@FullName, @Email, @PasswordHash, TRUE)
             RETURNING user_id;
+            """;
+
+        const string insertPersonSql = """
+            INSERT INTO org.persons (user_id, directorate_id, person_position, is_person_active)
+            VALUES (@UserId, @DirectorateId, @PersonPosition, TRUE);
             """;
 
         const string insertRoleSql = """
@@ -43,11 +48,19 @@ public sealed class UserRepository : IUserRepository
                 {
                     user.FullName,
                     user.Email,
-                    user.PasswordHash,
-                    user.PersonId,
-                    user.DirectorateId,
-                    user.ResponsibilityType
+                    user.PasswordHash
                 }, transaction, cancellationToken: cancellationToken));
+
+            if (user.PersonId.HasValue || user.DirectorateId.HasValue || user.ResponsibilityType is not null)
+            {
+                await connection.ExecuteAsync(
+                    new CommandDefinition(insertPersonSql, new
+                    {
+                        UserId = userId,
+                        DirectorateId = user.DirectorateId,
+                        PersonPosition = user.ResponsibilityType
+                    }, transaction, cancellationToken: cancellationToken));
+            }
 
             foreach (var roleId in roleIds)
             {
@@ -74,16 +87,17 @@ public sealed class UserRepository : IUserRepository
     {
         const string sql = """
             SELECT
-                user_id              AS Id,
-                user_fio             AS FullName,
-                user_email           AS Email,
-                user_password_hash   AS PasswordHash,
-                is_user_active       AS IsActive,
-                person_id            AS PersonId,
-                directorate_id       AS DirectorateId,
-                responsibility_type  AS ResponsibilityType
-            FROM roles.users
-            ORDER BY user_id;
+                u.user_id              AS Id,
+                u.user_fio             AS FullName,
+                u.user_email           AS Email,
+                u.user_password_hash   AS PasswordHash,
+                u.is_user_active       AS IsActive,
+                p.person_id            AS PersonId,
+                p.directorate_id       AS DirectorateId,
+                p.person_position      AS ResponsibilityType
+            FROM roles.users u
+            LEFT JOIN org.persons p ON p.user_id = u.user_id
+            ORDER BY u.user_id;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
@@ -100,16 +114,17 @@ public sealed class UserRepository : IUserRepository
     {
         const string sql = """
             SELECT
-                user_id              AS Id,
-                user_fio             AS FullName,
-                user_email           AS Email,
-                user_password_hash   AS PasswordHash,
-                is_user_active       AS IsActive,
-                person_id            AS PersonId,
-                directorate_id       AS DirectorateId,
-                responsibility_type  AS ResponsibilityType
-            FROM roles.users
-            WHERE user_id = @Id;
+                u.user_id              AS Id,
+                u.user_fio             AS FullName,
+                u.user_email           AS Email,
+                u.user_password_hash   AS PasswordHash,
+                u.is_user_active       AS IsActive,
+                p.person_id            AS PersonId,
+                p.directorate_id       AS DirectorateId,
+                p.person_position      AS ResponsibilityType
+            FROM roles.users u
+            LEFT JOIN org.persons p ON p.user_id = u.user_id
+            WHERE u.user_id = @Id;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
