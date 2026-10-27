@@ -44,27 +44,39 @@ namespace Application.Org.Directorates
         public async Task<int> UpdateAsync(
             int id,
             string? title,
-            bool isActive,
+            bool? isActive,
             CancellationToken cancellation = default)
         {
             if (id < 0)
                 throw new DirectorateValidationException("Идентификатор дирекции должен быть положительным");
+
+            if (title is null && isActive is null)
+            {
+                throw new DirectorateValidationException("Не передано ни одного поля для обновления.");
+            }
 
             var directorate = await _repository.GetByIdAsync(id, cancellation);
 
             if (directorate is null)
                 throw new DirectorateNotFoundException(id);
 
-            var normalizedTitle = ValidateTitle(title);
-
-            if (await _repository.TitleExistsAsync(normalizedTitle, id, cancellation))
+            if (title is not null)
             {
-                throw new DirectorateConflictException(
-                "Дирекция с таким названием уже существует.");
+                var normalizedTitle = ValidateTitle(title);
+
+                if (await _repository.TitleExistsAsync(normalizedTitle, id, cancellation))
+                {
+                    throw new DirectorateConflictException(
+                    "Дирекция с таким названием уже существует.");
+                }
+
+                directorate.Rename(normalizedTitle);
             }
 
-            directorate.Rename(normalizedTitle);
-            directorate.SetActive(isActive);
+            if (isActive.HasValue)
+            {
+                directorate.SetActive(isActive.Value);
+            }
 
             await _repository.UpdateAsync(directorate, cancellation);
 

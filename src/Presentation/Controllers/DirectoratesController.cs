@@ -20,7 +20,7 @@ public sealed class DirectoratesController : ControllerBase
 
     public sealed record UpdateDirectorateRequest(
         string? DirectorateTitle,
-        bool IsDirectorateActive);
+        bool? IsDirectorateActive);
 
     public sealed record DirectorateResponse(
         int DirectorateId,
