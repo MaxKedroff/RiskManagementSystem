@@ -114,17 +114,17 @@ namespace Infrastructure.Repositories
             const string sql = """
         SELECT
             (
-                SELECT COUNT(*)
+                SELECT COUNT(*)::int
                 FROM org.persons
                 WHERE directorate_id = @DirectorateId
             ) AS Persons,
             (
-                SELECT COUNT(*)
+                SELECT COUNT(*)::int
                 FROM org.processes
                 WHERE directorate_id = @DirectorateId
             ) AS Processes,
             (
-                SELECT COUNT(*)
+                SELECT COUNT(*)::int
                 FROM org.responsibility r
                 JOIN org.persons p ON p.person_id = r.person_id
                 WHERE p.directorate_id = @DirectorateId

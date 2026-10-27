@@ -154,7 +154,7 @@ public sealed class RiskCategoryRepository : IRiskCategoryRepository
         const string sql = """
             SELECT
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM risk.risks
                     WHERE category_id = @CategoryId
                 ) AS Risks;

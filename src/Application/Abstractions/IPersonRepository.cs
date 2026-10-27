@@ -5,9 +5,9 @@ using static Domain.Org.Person;
 namespace Application.Abstractions;
 
 public sealed record PersonDependencies(
-    int OwnedProcesses,
-    int Responsibilities,
-    int RiskProcesses)
+    long OwnedProcesses,
+    long Responsibilities,
+    long RiskProcesses)
 {
     public bool HasAny =>
         OwnedProcesses > 0 ||

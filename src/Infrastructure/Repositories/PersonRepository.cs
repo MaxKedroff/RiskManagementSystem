@@ -175,17 +175,17 @@ public sealed class PersonRepository : IPersonRepository
         const string sql = """
             SELECT
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM org.processes
                     WHERE owner_id = @PersonId
                 ) AS OwnedProcesses,
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM org.responsibility
                     WHERE person_id = @PersonId
                 ) AS Responsibilities,
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM risk.risk_processes
                     WHERE person_id = @PersonId
                 ) AS RiskProcesses;

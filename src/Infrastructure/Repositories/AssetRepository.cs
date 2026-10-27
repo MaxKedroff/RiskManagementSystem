@@ -158,7 +158,7 @@ public sealed class AssetRepository : IAssetRepository
         const string sql = """
             SELECT
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM risk.risks
                     WHERE asset_id = @AssetId
                 ) AS Risks;

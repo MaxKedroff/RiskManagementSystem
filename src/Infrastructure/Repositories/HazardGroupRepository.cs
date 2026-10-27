@@ -154,7 +154,7 @@ public sealed class HazardGroupRepository : IHazardGroupRepository
         const string sql = """
             SELECT
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM risk.hazards
                     WHERE hazard_group_id = @HazardGroupId
                 ) AS Hazards;

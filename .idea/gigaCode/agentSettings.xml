@@ -40,6 +40,18 @@
         <Execute>
           <option name="pattern" value="cd *" />
         </Execute>
+        <Execute>
+          <option name="pattern" value="powershell.exe -ExecutionPolicy Bypass -File create-users.ps1" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="powershell.exe -NoProfile -ExecutionPolicy Bypass -Command &quot;cd D:/University/OnionRiskPlatform/OnionRiskPlatform; .\create-users.ps1&quot;" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="powershell.exe -Command &quot;[System.IO.File]::WriteAllText('D:\University\OnionRiskPlatform\OnionRiskPlatform\create-users.ps1', [System.IO.File]::ReadAllText('D:\University\OnionRiskPlatform\OnionRiskPlatform\create-users.ps1', [System.Text.Encoding]::UTF8), [System.Text.Encoding]::UTF8)&quot;" />
+        </Execute>
+        <Execute>
+          <option name="pattern" value="powershell.exe -NoProfile -ExecutionPolicy Bypass -Command &quot;&amp; 'D:/University/OnionRiskPlatform/OnionRiskPlatform/create-users.ps1'&quot;" />
+        </Execute>
       </list>
     </option>
   </component>

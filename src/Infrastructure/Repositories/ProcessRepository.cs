@@ -167,17 +167,17 @@ public sealed class ProcessRepository : IProcessRepository
         const string sql = """
             SELECT
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM risk.risk_processes
                     WHERE process_id = @ProcessId
                 ) AS RiskProcesses,
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM org.responsibility
                     WHERE process_id = @ProcessId
                 ) AS Responsibilities,
                 (
-                    SELECT COUNT(*)
+                    SELECT COUNT(*)::int
                     FROM org.processes
                     WHERE owner_id = (
                         SELECT owner_id
