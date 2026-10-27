@@ -325,6 +325,7 @@ public sealed class RiskService
 
         // Transition risk to "Open" status
         await _riskRepository.UpdateStatusAsync(riskId, "Open", cancellationToken);
+        await _riskRepository.SetAcceptanceLevelAsync(riskId, acceptanceLevel, cancellationToken);
 
         return new AssessRiskResponse(
             assessmentId,
@@ -667,6 +668,7 @@ public sealed class RiskService
         // Set risk status based on score: score > 5 → "InTreatment", otherwise → "Open"
         var newStatus = riskScore > 5 ? "InTreatment" : "Open";
         await _riskRepository.UpdateStatusAsync(riskId, newStatus, cancellationToken);
+        await _riskRepository.SetAcceptanceLevelAsync(riskId, acceptanceLevel, cancellationToken);
 
         return new ReassessRiskResponse(
             assessmentId,

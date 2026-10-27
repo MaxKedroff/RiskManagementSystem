@@ -130,12 +130,13 @@ public sealed class TreatmentService
 
         var settings = await _approvalSettingsRepository.GetAsync(cancellationToken);
         ApprovalLevel approvalLevel;
-        if (treatment.PlannedCost <= settings.OwnerThreshold)
-            approvalLevel = ApprovalLevel.Owner;
-        else if (treatment.PlannedCost <= settings.DirectorThreshold)
+        // Thresholds are inclusive lower bounds of each level
+        if (treatment.PlannedCost >= settings.CeoThreshold)
+            approvalLevel = ApprovalLevel.Ceo;
+        else if (treatment.PlannedCost >= settings.DirectorThreshold)
             approvalLevel = ApprovalLevel.Director;
         else
-            approvalLevel = ApprovalLevel.Ceo;
+            approvalLevel = ApprovalLevel.Owner;
 
         var approvalRequest = new ApprovalRequest(treatmentId, approvalLevel, userId);
         var approvalRequestId = await _approvalRequestRepository.CreateAsync(approvalRequest, cancellationToken);
@@ -251,6 +252,7 @@ public sealed class TreatmentService
             throw new TreatmentValidationException("Исполнитель не выбран.");
 
         treatment.AssignTo(request.AssigneeId);
+        await _treatmentRepository.UpdateAssigneeAsync(treatmentId, request.AssigneeId, userId, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "AwaitingExecution", cancellationToken);
 
         return new ExecuteResponse(treatmentId, "AwaitingExecution", 0);

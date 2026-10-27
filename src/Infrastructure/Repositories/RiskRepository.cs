@@ -151,6 +151,28 @@ public sealed class RiskRepository : IRiskRepository
         return affected == 1;
     }
 
+    public async Task<bool> SetAcceptanceLevelAsync(
+        int riskId,
+        string acceptanceLevel,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risks
+            SET risk_acceptance_level = @AcceptanceLevel
+            WHERE risk_id = @RiskId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var affected = await connection.ExecuteAsync(
+            new CommandDefinition(
+                sql,
+                new { RiskId = riskId, AcceptanceLevel = acceptanceLevel },
+                cancellationToken: cancellationToken));
+
+        return affected == 1;
+    }
+
     public async Task<bool> ClearAcceptanceLevelAsync(
         int riskId,
         CancellationToken cancellationToken = default)
@@ -282,9 +304,9 @@ public sealed class RiskRepository : IRiskRepository
     {
         const string sql = """
             SELECT
-                p.process_title,
-                d.directorate_title,
-                u.user_fio
+                p.process_title     AS ProcessTitle,
+                d.directorate_title AS DirectorateTitle,
+                u.user_fio          AS UserFio
             FROM risk.risk_processes rp
             JOIN org.processes p ON p.process_id = rp.process_id
             JOIN org.directorates d ON d.directorate_id = p.directorate_id
