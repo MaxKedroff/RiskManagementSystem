@@ -430,6 +430,7 @@ public sealed class TreatmentService
 
         treatment.Complete(request.TreatmentCostAct);
         await _treatmentRepository.UpdateAsync(treatment, cancellationToken);
+        await _treatmentRepository.UpdateStatusAsync(treatmentId, "Completed", cancellationToken);
 
         if (hasOtherActiveTreatments)
         {
