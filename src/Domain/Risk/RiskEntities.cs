@@ -407,21 +407,21 @@ public sealed class RiskComment : Entity
 
 public sealed class HazardGroupDependencies
 {
-    public long Hazards { get; init; }
+    public int Hazards { get; init; }
 
     public bool HasAny => Hazards > 0;
 }
 
 public sealed class HazardDependencies
 {
-    public long Risks { get; init; }
+    public int Risks { get; init; }
 
     public bool HasAny => Risks > 0;
 }
 
 public sealed class RiskCategoryDependencies
 {
-    public long Risks { get; init; }
+    public int Risks { get; init; }
 
     public bool HasAny => Risks > 0;
 }

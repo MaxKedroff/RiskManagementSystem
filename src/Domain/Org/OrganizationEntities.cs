@@ -130,9 +130,9 @@ public sealed class ProcessUpdate
 
 public sealed class ProcessDependencies
 {
-    public long RiskProcesses { get; init; }
-    public long Responsibilities { get; init; }
-    public long OwnedProcesses { get; init; }
+    public int RiskProcesses { get; init; }
+    public int Responsibilities { get; init; }
+    public int OwnedProcesses { get; init; }
 
     public bool HasAny => RiskProcesses > 0 || Responsibilities > 0 || OwnedProcesses > 0;
 }
@@ -283,7 +283,7 @@ public sealed class AssetUpdate
 
 public sealed class AssetDependencies
 {
-    public long Risks { get; init; }
+    public int Risks { get; init; }
 
     public bool HasAny => Risks > 0;
 }
