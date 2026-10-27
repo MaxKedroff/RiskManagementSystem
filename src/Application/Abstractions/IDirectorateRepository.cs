@@ -4,9 +4,9 @@ using Domain.Org;
 namespace Application.Abstractions;
 
 public sealed record DirectorateDependencies(
-    long Persons,
-    long Processes,
-    long Responsibilities)
+    int Persons,
+    int Processes,
+    int Responsibilities)
 {
     public bool HasAny =>
         Persons > 0 ||
