@@ -665,8 +665,8 @@ public sealed class RiskService
 
         var assessmentId = await _riskAssessmentRepository.CreateAsync(assessment, cancellationToken);
 
-        // Set risk status based on score: score > 5 → "InTreatment", otherwise → "Open"
-        var newStatus = riskScore > 5 ? "InTreatment" : "Open";
+        // A reassessed risk is active again, like after the primary assessment
+        var newStatus = "Open";
         await _riskRepository.UpdateStatusAsync(riskId, newStatus, cancellationToken);
         await _riskRepository.SetAcceptanceLevelAsync(riskId, acceptanceLevel, cancellationToken);
 
