@@ -31,5 +31,6 @@ namespace Application.Abstractions
         string? Impact,
         int? RiskScore,
         string RiskStatus,
-        string? AcceptanceLevel);
+        string? AcceptanceLevel,
+        int[]? RiskProcessIds = null);
 }

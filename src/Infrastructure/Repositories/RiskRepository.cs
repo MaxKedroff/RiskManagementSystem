@@ -270,7 +270,8 @@ public sealed class RiskRepository : IRiskRepository
                 first.ImpactName,
                 first.RiskScore,
                 first.RiskStatus,
-                first.AcceptanceLevel));
+                first.AcceptanceLevel,
+                processInfo.RiskProcessIds));
         }
 
         return results.ToArray();
@@ -298,12 +299,13 @@ public sealed class RiskRepository : IRiskRepository
                 cancellationToken: cancellationToken));
     }
 
-    private async Task<(string[] Processes, string[] Directorates, string[] Owners)> GetProcessInfoForRiskAsync(
+    private async Task<(string[] Processes, string[] Directorates, string[] Owners, int[] RiskProcessIds)> GetProcessInfoForRiskAsync(
         int riskId,
         CancellationToken cancellationToken)
     {
         const string sql = """
             SELECT
+                rp.risk_process_id  AS RiskProcessId,
                 p.process_title     AS ProcessTitle,
                 d.directorate_title AS DirectorateTitle,
                 u.user_fio          AS UserFio
@@ -323,8 +325,9 @@ public sealed class RiskRepository : IRiskRepository
         var processes = rows.Select(r => r.ProcessTitle).ToArray();
         var directorates = rows.Select(r => r.DirectorateTitle).ToArray();
         var owners = rows.Select(r => r.UserFio).ToArray();
+        var riskProcessIds = rows.Select(r => r.RiskProcessId).ToArray();
 
-        return (processes, directorates, owners);
+        return (processes, directorates, owners, riskProcessIds);
     }
 
     private static Risk Map(RiskRow row) =>
@@ -390,6 +393,7 @@ public sealed class RiskRepository : IRiskRepository
 
     private sealed class ProcessInfoRow
     {
+        public int RiskProcessId { get; init; }
         public string ProcessTitle { get; init; } = string.Empty;
         public string DirectorateTitle { get; init; } = string.Empty;
         public string UserFio { get; init; } = string.Empty;
