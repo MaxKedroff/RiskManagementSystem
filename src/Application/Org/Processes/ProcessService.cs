@@ -7,10 +7,14 @@ namespace Application.Org.Processes;
 public sealed class ProcessService
 {
     private readonly IProcessRepository _repository;
+    private readonly IPersonRepository _personRepository;
 
-    public ProcessService(IProcessRepository repository)
+    public ProcessService(
+        IProcessRepository repository,
+        IPersonRepository personRepository)
     {
         _repository = repository;
+        _personRepository = personRepository;
     }
 
     public async Task<int> CreateAsync(
@@ -26,13 +30,18 @@ public sealed class ProcessService
             throw new ProcessValidationException(
                 $"Активная дирекция с ID {directorateId} не найдена.");
 
-        if (!await _repository.UserExistsAsync(ownerId, cancellationToken))
-            throw new ProcessValidationException(
-                $"Пользователь с ID {ownerId} не найден или неактивен.");
+        var person = await _personRepository.GetByIdAsync(ownerId, cancellationToken)
+            ?? throw new ProcessValidationException($"Сотрудник с ID {ownerId} не найден.");
 
-        if (!await _repository.UserHasRoleAsync(ownerId, "OWNER", cancellationToken))
+        if (!person.IsActive)
+            throw new ProcessValidationException("Сотрудник неактивен.");
+
+        if (!person.UserId.HasValue)
+            throw new ProcessValidationException("У сотрудника не привязан пользователь.");
+
+        if (!await _repository.UserHasRoleAsync(person.UserId.Value, "OWNER", cancellationToken))
             throw new ProcessValidationException(
-                $"Пользователь с ID {ownerId} не имеет роли OWNER.");
+                $"Сотрудник с ID {ownerId} не имеет роли OWNER.");
 
         var process = new BusinessProcess(
             directorateId,
@@ -107,13 +116,18 @@ public sealed class ProcessService
             if (ownerId.Value <= 0)
                 throw new ProcessValidationException("ownerId должен быть положительным.");
 
-            if (!await _repository.UserExistsAsync(ownerId.Value, cancellationToken))
-                throw new ProcessValidationException(
-                    $"Пользователь с ID {ownerId} не найден или неактивен.");
+            var updatePerson = await _personRepository.GetByIdAsync(ownerId.Value, cancellationToken)
+                ?? throw new ProcessValidationException($"Сотрудник с ID {ownerId.Value} не найден.");
 
-            if (!await _repository.UserHasRoleAsync(ownerId.Value, "OWNER", cancellationToken))
+            if (!updatePerson.IsActive)
+                throw new ProcessValidationException("Сотрудник неактивен.");
+
+            if (!updatePerson.UserId.HasValue)
+                throw new ProcessValidationException("У сотрудника не привязан пользователь.");
+
+            if (!await _repository.UserHasRoleAsync(updatePerson.UserId.Value, "OWNER", cancellationToken))
                 throw new ProcessValidationException(
-                    $"Пользователь с ID {ownerId} не имеет роли OWNER.");
+                    $"Сотрудник с ID {ownerId.Value} не имеет роли OWNER.");
         }
 
         if (processDescription is not null && processDescription.Length > 1000)
