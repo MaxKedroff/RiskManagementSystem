@@ -1,3 +1,4 @@
+using Application.Abstractions;
 using Application.Treatment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,27 @@ public sealed class TreatmentsController : ControllerBase
     {
         _service = service;
         _logger = logger;
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(TreatmentListItem[]), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _service.GetListAsync(GetUserId(), cancellationToken));
+        }
+        catch (TreatmentPermissionException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list treatments.");
+            return Problem(statusCode: 500, title: "Внутренняя ошибка сервера.");
+        }
     }
 
     [HttpPost]

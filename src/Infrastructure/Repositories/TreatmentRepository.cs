@@ -388,6 +388,47 @@ public sealed class TreatmentRepository : ITreatmentRepository
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<IReadOnlyList<TreatmentListItem>> GetListAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                t.treatment_id            AS TreatmentId,
+                rp.risk_id                AS RiskId,
+                t.risk_process_id         AS RiskProcessId,
+                t.treatment_title         AS TreatmentTitle,
+                t.treatment_description   AS TreatmentDescription,
+                t.treatment_status        AS TreatmentStatus,
+                t.treatment_date          AS DueDate,
+                t.treatment_cost_plan     AS TreatmentCostPlan,
+                t.treatment_cost_act      AS TreatmentCostAct,
+                t.treatment_created_by_id AS CreatedById,
+                t.treatment_assigned_id   AS AssigneeId,
+                t.treatment_created       AS CreatedAt,
+                t.treatment_updated       AS UpdatedAt,
+                ar.approval_request_id    AS ApprovalRequestId,
+                ar.approval_required_level AS ApprovalRequiredLevel,
+                ar.approval_request_status AS ApprovalRequestStatus
+            FROM treatment.treatments t
+            JOIN risk.risk_processes rp ON rp.risk_process_id = t.risk_process_id
+            LEFT JOIN LATERAL (
+                SELECT approval_request_id, approval_required_level, approval_request_status
+                FROM treatment.approval_requests
+                WHERE treatment_id = t.treatment_id
+                ORDER BY approval_request_id DESC
+                LIMIT 1
+            ) ar ON TRUE
+            ORDER BY t.treatment_id;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var rows = await connection.QueryAsync<TreatmentListItem>(
+            new CommandDefinition(sql, cancellationToken: cancellationToken));
+
+        return rows.ToArray();
+    }
+
     private static Treatment Map(TreatmentRow row) =>
         Treatment.Rehydrate(
             row.Id,

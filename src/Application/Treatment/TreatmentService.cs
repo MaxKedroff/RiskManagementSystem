@@ -93,6 +93,17 @@ public sealed class TreatmentService
     }
 
     // POST /v1/treatments/{id}/submit-approval
+    // GET /v1/treatments
+    public async Task<IReadOnlyList<TreatmentListItem>> GetListAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _permissionService.HasRightAsync(userId, "view_risk", cancellationToken))
+            throw new TreatmentPermissionException("Отсутствует право view_risk.");
+
+        return await _treatmentRepository.GetListAsync(cancellationToken);
+    }
+
     public async Task<SubmitApprovalResponse> SubmitApprovalAsync(
         int treatmentId,
         int userId,

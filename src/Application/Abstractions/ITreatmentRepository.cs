@@ -22,5 +22,26 @@ namespace Application.Abstractions
         Task<int[]> GetActiveRiskProcessIdsAsync(int riskId, CancellationToken cancellationToken = default);
         Task<bool> HasNonTerminalTreatmentAsync(int riskProcessId, CancellationToken cancellationToken = default);
         Task<bool> AllTreatmentsTerminalAsync(int riskProcessId, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<TreatmentListItem>> GetListAsync(CancellationToken cancellationToken = default);
+    }
+
+    public sealed class TreatmentListItem
+    {
+        public int TreatmentId { get; init; }
+        public int RiskId { get; init; }
+        public int RiskProcessId { get; init; }
+        public string TreatmentTitle { get; init; } = string.Empty;
+        public string? TreatmentDescription { get; init; }
+        public string TreatmentStatus { get; init; } = string.Empty;
+        public DateTimeOffset DueDate { get; init; }
+        public decimal TreatmentCostPlan { get; init; }
+        public decimal TreatmentCostAct { get; init; }
+        public int CreatedById { get; init; }
+        public int? AssigneeId { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset? UpdatedAt { get; init; }
+        public int? ApprovalRequestId { get; init; }
+        public string? ApprovalRequiredLevel { get; init; }
+        public string? ApprovalRequestStatus { get; init; }
     }
 }
