@@ -41,14 +41,23 @@ public sealed class TreatmentApprovalSettingsRepository : ITreatmentApprovalSett
         CancellationToken cancellationToken = default)
     {
         const string sql = """
-            INSERT INTO treatment.treatment_approval_settings
-                (owner_threshold, director_threshold, ceo_threshold)
-            VALUES (@Owner, @Director, @Ceo)
-            ON CONFLICT DO UPDATE SET
-                owner_threshold = EXCLUDED.owner_threshold,
-                director_threshold = EXCLUDED.director_threshold,
-                ceo_threshold = EXCLUDED.ceo_threshold
-            RETURNING treatment_approval_set_id;
+            WITH updated AS (
+                UPDATE treatment.treatment_approval_settings
+                SET owner_threshold = @Owner,
+                    director_threshold = @Director,
+                    ceo_threshold = @Ceo
+                RETURNING treatment_approval_set_id
+            ), inserted AS (
+                INSERT INTO treatment.treatment_approval_settings
+                    (owner_threshold, director_threshold, ceo_threshold)
+                SELECT @Owner, @Director, @Ceo
+                WHERE NOT EXISTS (SELECT 1 FROM updated)
+                RETURNING treatment_approval_set_id
+            )
+            SELECT treatment_approval_set_id FROM updated
+            UNION ALL
+            SELECT treatment_approval_set_id FROM inserted
+            LIMIT 1;
             """;
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);

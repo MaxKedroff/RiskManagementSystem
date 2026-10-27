@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/org/directorates")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class DirectoratesController : ControllerBase
 {
     private readonly DirectorateService _service;
@@ -36,6 +36,7 @@ public sealed class DirectoratesController : ControllerBase
         string Message,
         object? Details = null);
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreatedDirectorateResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
@@ -72,6 +73,7 @@ public sealed class DirectoratesController : ControllerBase
             d.IsActive)));
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(UpdatedDirectorateResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
@@ -98,6 +100,7 @@ public sealed class DirectoratesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]

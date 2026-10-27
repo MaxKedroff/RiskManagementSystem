@@ -300,6 +300,7 @@ public sealed class Risk : Entity
 public sealed class RiskProcess : Entity
 {
     public int RiskId { get; private set; }
+    public int ProcessId { get; private set; }
     public int ProcessedOwnerUserId { get; private set; }
     public int PersonId { get; private set; }
     public bool IsPrimary { get; private set; }
@@ -308,14 +309,16 @@ public sealed class RiskProcess : Entity
 
     public RiskProcess(
         int riskId,
+        int processId,
         int processedOwnerUserId,
         int personId,
         bool isPrimary = false)
     {
-        if (riskId <= 0 || processedOwnerUserId <= 0 || personId <= 0)
+        if (riskId <= 0 || processId <= 0 || processedOwnerUserId <= 0 || personId <= 0)
             throw new DomainException("Связь риска с ответственным указана некорректно.");
 
         RiskId = riskId;
+        ProcessId = processId;
         ProcessedOwnerUserId = processedOwnerUserId;
         PersonId = personId;
         IsPrimary = isPrimary;

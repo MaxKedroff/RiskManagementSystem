@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/org/persons")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class PersonsController : ControllerBase
 {
     private readonly PersonService _service;
@@ -20,6 +20,7 @@ public sealed class PersonsController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreatePersonResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -74,6 +75,7 @@ public sealed class PersonsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(
     int id,
@@ -106,6 +108,7 @@ public sealed class PersonsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

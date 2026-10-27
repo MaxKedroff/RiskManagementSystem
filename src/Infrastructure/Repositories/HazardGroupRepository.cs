@@ -157,6 +157,7 @@ public sealed class HazardGroupRepository : IHazardGroupRepository
                     SELECT COUNT(*)::int
                     FROM risk.hazards
                     WHERE hazard_group_id = @HazardGroupId
+                      AND is_active = TRUE
                 ) AS Hazards;
             """;
 

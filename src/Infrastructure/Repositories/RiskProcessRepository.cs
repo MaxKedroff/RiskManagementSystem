@@ -20,9 +20,9 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
     {
         const string sql = """
             INSERT INTO risk.risk_processes
-                (risk_id, risk_processed_owner_id, person_id, is_risk_process_primary)
+                (risk_id, process_id, risk_processed_owner_id, person_id, is_risk_process_primary)
             VALUES
-                (@RiskId, @ProcessedOwnerUserId, @PersonId, @IsPrimary)
+                (@RiskId, @ProcessId, @ProcessedOwnerUserId, @PersonId, @IsPrimary)
             RETURNING risk_process_id;
             """;
 
@@ -34,6 +34,7 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
                 new
                 {
                     entity.RiskId,
+                    entity.ProcessId,
                     entity.ProcessedOwnerUserId,
                     entity.PersonId,
                     entity.IsPrimary
@@ -111,9 +112,10 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
         CancellationToken cancellationToken = default)
     {
         const string sql = """
-            SELECT person_id
+            SELECT DISTINCT process_id
             FROM risk.risk_processes
-            WHERE risk_id = @RiskId;
+            WHERE risk_id = @RiskId
+              AND process_id IS NOT NULL;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
@@ -150,6 +152,7 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
 
     public async Task<int> CreateRiskProcessAsync(
         int riskId,
+        int processId,
         int processedOwnerUserId,
         int personId,
         bool isPrimary,
@@ -157,9 +160,9 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
     {
         const string sql = """
             INSERT INTO risk.risk_processes
-                (risk_id, risk_processed_owner_id, person_id, is_risk_process_primary)
+                (risk_id, process_id, risk_processed_owner_id, person_id, is_risk_process_primary)
             VALUES
-                (@RiskId, @ProcessedOwnerUserId, @PersonId, @IsPrimary)
+                (@RiskId, @ProcessId, @ProcessedOwnerUserId, @PersonId, @IsPrimary)
             RETURNING risk_process_id;
             """;
 
@@ -171,32 +174,11 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
                 new
                 {
                     RiskId = riskId,
+                    ProcessId = processId,
                     ProcessedOwnerUserId = processedOwnerUserId,
                     PersonId = personId,
                     IsPrimary = isPrimary
                 },
                 cancellationToken: cancellationToken));
-    }
-
-    public async Task<bool> UpdateRiskProcessUnlinkedAtAsync(
-        int riskProcessId,
-        DateTimeOffset unlinkedAt,
-        CancellationToken cancellationToken = default)
-    {
-        const string sql = """
-            UPDATE risk.risk_processes
-            SET unlinked_at = @UnlinkedAt
-            WHERE risk_process_id = @RiskProcessId;
-            """;
-
-        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
-
-        var affected = await connection.ExecuteAsync(
-            new CommandDefinition(
-                sql,
-                new { RiskProcessId = riskProcessId, UnlinkedAt = unlinkedAt },
-                cancellationToken: cancellationToken));
-
-        return affected == 1;
     }
 }

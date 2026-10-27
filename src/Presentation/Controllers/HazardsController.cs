@@ -7,7 +7,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/risk/hazards")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class HazardsController : ControllerBase
 {
     private readonly HazardService _service;
@@ -21,6 +21,7 @@ public sealed class HazardsController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreateHazardResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -109,6 +110,7 @@ public sealed class HazardsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(UpdateHazardResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -149,6 +151,7 @@ public sealed class HazardsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

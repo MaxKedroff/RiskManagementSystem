@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/org/processes")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class ProcessesController : ControllerBase
 {
     private readonly ProcessService _service;
@@ -20,6 +20,7 @@ public sealed class ProcessesController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreateProcessResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -110,6 +111,7 @@ public sealed class ProcessesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(UpdateProcessResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -161,6 +163,7 @@ public sealed class ProcessesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

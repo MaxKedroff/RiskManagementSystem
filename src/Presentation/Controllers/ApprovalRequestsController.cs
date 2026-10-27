@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/approval-requests")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class ApprovalRequestsController : ControllerBase
 {
     private readonly TreatmentService _service;

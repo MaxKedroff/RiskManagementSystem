@@ -21,7 +21,7 @@ public sealed class ResponsibilityRepository : IResponsibilityRepository
     {
         const string sql = """
             INSERT INTO org.responsibility
-                (person_id, directed_person_id, responsibility_type, is_responsibility_active)
+                (person_id, directed_id, responsibility_type, is_responsibility_active)
             VALUES
                 (@PersonId, @DirectedPersonId, @Type, TRUE)
             RETURNING responsibility_type_id;
@@ -45,7 +45,7 @@ public sealed class ResponsibilityRepository : IResponsibilityRepository
             SELECT
                 responsibility_type_id     AS Id,
                 person_id                  AS PersonId,
-                directed_person_id         AS DirectedPersonId,
+                directed_id         AS DirectedPersonId,
                 responsibility_type        AS Type,
                 is_responsibility_active   AS IsActive
             FROM org.responsibility
@@ -68,7 +68,7 @@ public sealed class ResponsibilityRepository : IResponsibilityRepository
             SELECT
                 responsibility_type_id     AS Id,
                 person_id                  AS PersonId,
-                directed_person_id         AS DirectedPersonId,
+                directed_id         AS DirectedPersonId,
                 responsibility_type        AS Type,
                 is_responsibility_active   AS IsActive
             FROM org.responsibility
@@ -100,7 +100,7 @@ public sealed class ResponsibilityRepository : IResponsibilityRepository
 
         if (update.DirectedPersonId.HasValue)
         {
-            setClauses.Add("directed_person_id = @DirectedPersonId");
+            setClauses.Add("directed_id = @DirectedPersonId");
             parameters.Add("DirectedPersonId", update.DirectedPersonId.Value);
         }
 

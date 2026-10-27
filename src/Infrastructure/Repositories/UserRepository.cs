@@ -96,7 +96,13 @@ public sealed class UserRepository : IUserRepository
                 p.directorate_id       AS DirectorateId,
                 p.person_position      AS ResponsibilityType
             FROM roles.users u
-            LEFT JOIN org.persons p ON p.user_id = u.user_id
+            LEFT JOIN LATERAL (
+                SELECT person_id, directorate_id, person_position
+                FROM org.persons
+                WHERE user_id = u.user_id
+                ORDER BY is_person_active DESC, person_id DESC
+                LIMIT 1
+            ) p ON TRUE
             ORDER BY u.user_id;
             """;
 
@@ -123,7 +129,13 @@ public sealed class UserRepository : IUserRepository
                 p.directorate_id       AS DirectorateId,
                 p.person_position      AS ResponsibilityType
             FROM roles.users u
-            LEFT JOIN org.persons p ON p.user_id = u.user_id
+            LEFT JOIN LATERAL (
+                SELECT person_id, directorate_id, person_position
+                FROM org.persons
+                WHERE user_id = u.user_id
+                ORDER BY is_person_active DESC, person_id DESC
+                LIMIT 1
+            ) p ON TRUE
             WHERE u.user_id = @Id;
             """;
 

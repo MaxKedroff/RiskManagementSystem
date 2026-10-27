@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/treatment/approval-settings")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class ApprovalSettingsController : ControllerBase
 {
     private readonly TreatmentApprovalSettingsService _service;
@@ -41,6 +41,7 @@ public sealed class ApprovalSettingsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(SaveApprovalSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Save(

@@ -7,7 +7,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/risk/categories")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class CategoriesController : ControllerBase
 {
     private readonly RiskCategoryService _service;
@@ -21,6 +21,7 @@ public sealed class CategoriesController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreateCategoryResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -106,6 +107,7 @@ public sealed class CategoriesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(UpdateCategoryResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -145,6 +147,7 @@ public sealed class CategoriesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

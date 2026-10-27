@@ -126,6 +126,7 @@ public sealed class RiskService
 
             var riskProcess = new RiskProcess(
                 riskId,
+                primary.ProcessId,
                 ownerUserId,
                 primary.OwnerPersonId,
                 true); // isPrimary
@@ -360,8 +361,8 @@ public sealed class RiskService
             throw new RiskValidationException("Режим ответа уже выбран.");
 
         // Check no blocking measures (non-terminal treatments on any linked process)
-        var existingProcessIds = await _riskProcessRepository.GetExistingProcessIdsAsync(riskId, cancellationToken);
-        foreach (var processId in existingProcessIds)
+        var riskProcessIds = await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken);
+        foreach (var processId in riskProcessIds)
         {
             if (await _treatmentRepository.HasNonTerminalTreatmentAsync(processId, cancellationToken))
                 throw new RiskConflictException("Риск имеет блокирующие меры обработки.");
@@ -473,6 +474,7 @@ public sealed class RiskService
             var ownerUserId = ownerInfo.OwnerUserId ?? userId;
             await _riskProcessRepository.CreateRiskProcessAsync(
                 riskId,
+                ownerInfo.ProcessId,
                 ownerUserId,
                 ownerInfo.OwnerPersonId,
                 ownerInfo.ProcessId == request.PrimaryProcessId,
@@ -505,8 +507,8 @@ public sealed class RiskService
             throw new RiskValidationException("Режим ответа уже выбран или оценка отсутствует.");
 
         // Check all treatments on current processes are terminal
-        var existingProcessIds = await _riskProcessRepository.GetExistingProcessIdsAsync(riskId, cancellationToken);
-        foreach (var processId in existingProcessIds)
+        var riskProcessIds = await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken);
+        foreach (var processId in riskProcessIds)
         {
             if (!await _treatmentRepository.AllTreatmentsTerminalAsync(processId, cancellationToken))
                 throw new RiskValidationException("Риск имеет нетерминальные меры обработки.");
@@ -533,6 +535,7 @@ public sealed class RiskService
         var newOwnerUserId = newOwnerInfo.OwnerUserId ?? userId;
         await _riskProcessRepository.CreateRiskProcessAsync(
             riskId,
+            request.NewProcessId,
             newOwnerUserId,
             newOwnerInfo.OwnerPersonId,
             true,
@@ -790,8 +793,8 @@ public sealed class RiskService
             throw new RiskValidationException("Риск не может быть закрыт в текущем статусе.");
 
         // Check no blocking measures
-        var existingProcessIds = await _riskProcessRepository.GetExistingProcessIdsAsync(riskId, cancellationToken);
-        foreach (var processId in existingProcessIds)
+        var riskProcessIds = await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken);
+        foreach (var processId in riskProcessIds)
         {
             if (await _treatmentRepository.HasNonTerminalTreatmentAsync(processId, cancellationToken))
                 throw new RiskValidationException("Риск имеет блокирующие меры обработки.");

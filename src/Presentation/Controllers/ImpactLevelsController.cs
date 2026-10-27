@@ -7,7 +7,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/assessment/impact-levels")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class ImpactLevelsController : ControllerBase
 {
     private readonly ImpactLevelService _service;
@@ -44,6 +44,7 @@ public sealed class ImpactLevelsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

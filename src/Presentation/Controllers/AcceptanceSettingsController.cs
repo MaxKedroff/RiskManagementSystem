@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/assessment/acceptance-settings")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class AcceptanceSettingsController : ControllerBase
 {
     private readonly RiskAcceptanceSettingsService _service;
@@ -47,6 +47,7 @@ public sealed class AcceptanceSettingsController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(SaveAcceptanceSettingsResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Save(

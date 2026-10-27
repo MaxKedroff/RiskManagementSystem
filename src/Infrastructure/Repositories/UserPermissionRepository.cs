@@ -27,7 +27,6 @@ public sealed class UserPermissionRepository : IUserPermissionRepository
                 WHERE ur.user_id = @UserId
                   AND r.right_code = @RightCode
                   AND ur.is_active = TRUE
-                  AND r.is_active = TRUE
             );
             """;
 

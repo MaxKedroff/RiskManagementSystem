@@ -8,7 +8,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/risks")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class RisksController : ControllerBase
 {
     private readonly RiskService _service;

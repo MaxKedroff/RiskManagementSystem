@@ -69,7 +69,10 @@ public sealed class ImpactLevelRepository : IImpactLevelRepository
                 (method_id, impact_level_name, impact_level_weight, impact_level_loss, impact_level_max)
             VALUES
                 (@MethodId, @Name, @Weight, @Loss, @Max)
-            ON CONFLICT DO NOTHING;
+            ON CONFLICT (method_id, impact_level_weight) DO UPDATE SET
+                impact_level_name = EXCLUDED.impact_level_name,
+                impact_level_loss = EXCLUDED.impact_level_loss,
+                impact_level_max = EXCLUDED.impact_level_max;
             """;
 
         await using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);

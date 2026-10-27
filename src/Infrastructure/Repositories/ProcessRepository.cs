@@ -173,11 +173,6 @@ public sealed class ProcessRepository : IProcessRepository
                 ) AS RiskProcesses,
                 (
                     SELECT COUNT(*)::int
-                    FROM org.responsibility
-                    WHERE process_id = @ProcessId
-                ) AS Responsibilities,
-                (
-                    SELECT COUNT(*)::int
                     FROM org.processes
                     WHERE owner_id = (
                         SELECT owner_id

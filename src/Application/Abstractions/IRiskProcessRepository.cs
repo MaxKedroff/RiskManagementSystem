@@ -13,7 +13,6 @@ namespace Application.Abstractions
         Task<bool> IsProcessActiveAsync(int processId, CancellationToken cancellationToken = default);
         Task<int[]> GetExistingProcessIdsAsync(int riskId, CancellationToken cancellationToken = default);
         Task<bool> DeactivateRiskProcessLinksAsync(int riskId, CancellationToken cancellationToken = default);
-        Task<int> CreateRiskProcessAsync(int riskId, int processedOwnerUserId, int personId, bool isPrimary, CancellationToken cancellationToken = default);
-        Task<bool> UpdateRiskProcessUnlinkedAtAsync(int riskProcessId, DateTimeOffset unlinkedAt, CancellationToken cancellationToken = default);
+        Task<int> CreateRiskProcessAsync(int riskId, int processId, int processedOwnerUserId, int personId, bool isPrimary, CancellationToken cancellationToken = default);
     }
 }

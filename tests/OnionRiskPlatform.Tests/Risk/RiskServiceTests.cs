@@ -722,7 +722,7 @@ public class RiskServiceTests
             .ReturnsAsync(Array.Empty<int>());
         _riskProcessRepository.Setup(r => r.DeactivateRiskProcessLinksAsync(1, CancellationToken.None))
             .ReturnsAsync(true);
-        _riskProcessRepository.Setup(r => r.CreateRiskProcessAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), CancellationToken.None))
+        _riskProcessRepository.Setup(r => r.CreateRiskProcessAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), CancellationToken.None))
             .ReturnsAsync(1);
         _riskAssessmentRepository.Setup(r => r.GetActiveAssessmentIdAsync(1, CancellationToken.None))
             .ReturnsAsync(10);
@@ -790,7 +790,7 @@ public class RiskServiceTests
             .ReturnsAsync(true);
         _riskProcessRepository.Setup(r => r.DeactivateRiskProcessLinksAsync(1, CancellationToken.None))
             .ReturnsAsync(true);
-        _riskProcessRepository.Setup(r => r.CreateRiskProcessAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), CancellationToken.None))
+        _riskProcessRepository.Setup(r => r.CreateRiskProcessAsync(It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<bool>(), CancellationToken.None))
             .ReturnsAsync(1);
         _riskRepository.Setup(r => r.ClearAcceptanceLevelAsync(1, CancellationToken.None))
             .ReturnsAsync(true);
