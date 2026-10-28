@@ -314,7 +314,9 @@ public sealed class RiskRepository : IRiskRepository
             JOIN org.directorates d ON d.directorate_id = p.directorate_id
             JOIN org.persons pr ON pr.person_id = rp.person_id
             JOIN roles.users u ON u.user_id = rp.risk_processed_owner_id
-            WHERE rp.risk_id = @RiskId;
+            WHERE rp.risk_id = @RiskId
+              AND rp.unlinked_at IS NULL
+            ORDER BY rp.is_risk_process_primary DESC, rp.risk_process_id;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
@@ -360,6 +362,7 @@ public sealed class RiskRepository : IRiskRepository
             "Owner" => RiskAcceptanceLevel.Owner,
             "Director" => RiskAcceptanceLevel.Director,
             "Ceo" => RiskAcceptanceLevel.Ceo,
+            "TreatmentRequired" => RiskAcceptanceLevel.TreatmentRequired,
             _ => null
         };
 
@@ -439,13 +442,14 @@ public sealed class RiskRepository : IRiskRepository
                 d.directorate_title        AS Directorate,
                 rp.risk_processed_owner_id AS OwnerUserId,
                 u.user_fio                 AS OwnerName,
-                rp.is_risk_process_primary AS IsPrimary
+                rp.is_risk_process_primary AS IsPrimary,
+                rp.unlinked_at IS NULL     AS IsActive
             FROM risk.risk_processes rp
             LEFT JOIN org.processes p ON p.process_id = rp.process_id
             LEFT JOIN org.directorates d ON d.directorate_id = p.directorate_id
             LEFT JOIN roles.users u ON u.user_id = rp.risk_processed_owner_id
             WHERE rp.risk_id = @RiskId
-            ORDER BY rp.is_risk_process_primary DESC, rp.risk_process_id;
+            ORDER BY rp.unlinked_at IS NULL DESC, rp.is_risk_process_primary DESC, rp.risk_process_id;
             """;
 
         const string assessmentsSql = """

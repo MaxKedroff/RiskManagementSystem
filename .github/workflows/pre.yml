@@ -96,5 +96,5 @@ jobs:
           echo "test"
           
           echo "Deployment completed successfully!"
-          end workflow
+
         EOF

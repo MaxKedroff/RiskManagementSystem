@@ -33,6 +33,7 @@ public sealed class RiskLinkItem
     public int OwnerUserId { get; init; }
     public string? OwnerName { get; init; }
     public bool IsPrimary { get; init; }
+    public bool IsActive { get; init; }
 }
 
 public sealed class AssessmentItem

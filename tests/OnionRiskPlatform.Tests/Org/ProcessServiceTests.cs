@@ -20,7 +20,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.CreateAsync(It.IsAny<BusinessProcess>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(42);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act
         var result = await service.CreateAsync(1, "Test Process", 1, "Description");
@@ -34,7 +34,7 @@ public class ProcessServiceTests
     {
         // Arrange
         var repo = new Mock<IProcessRepository>();
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -46,7 +46,7 @@ public class ProcessServiceTests
     {
         // Arrange
         var repo = new Mock<IProcessRepository>();
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -61,7 +61,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.DirectorateIsActiveAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -78,7 +78,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.UserExistsAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -97,7 +97,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.UserHasRoleAsync(1, "OWNER", It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -117,7 +117,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync((IReadOnlyList<BusinessProcess>)processes);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act
         var result = await service.GetAllAsync();
@@ -135,7 +135,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetByIdAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(process);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act
         var result = await service.GetByIdAsync(1);
@@ -149,7 +149,7 @@ public class ProcessServiceTests
     {
         // Arrange
         var repo = new Mock<IProcessRepository>();
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -164,7 +164,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>()))
             .ReturnsAsync((BusinessProcess?)null);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessNotFoundException>(() =>
@@ -188,7 +188,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.UpdateAsync(It.IsAny<ProcessUpdate>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act
         var result = await service.UpdateAsync(1, 2, "New", 2, "New Desc", true);
@@ -202,7 +202,7 @@ public class ProcessServiceTests
     {
         // Arrange
         var repo = new Mock<IProcessRepository>();
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -217,7 +217,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>()))
             .ReturnsAsync((BusinessProcess?)null);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessNotFoundException>(() =>
@@ -235,7 +235,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.UpdateAsync(It.IsAny<ProcessUpdate>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -255,7 +255,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.DeactivateAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act
         await service.DeactivateAsync(1);
@@ -269,7 +269,7 @@ public class ProcessServiceTests
     {
         // Arrange
         var repo = new Mock<IProcessRepository>();
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessValidationException>(() =>
@@ -284,7 +284,7 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetByIdAsync(99, It.IsAny<CancellationToken>()))
             .ReturnsAsync((BusinessProcess?)null);
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessNotFoundException>(() =>
@@ -302,10 +302,19 @@ public class ProcessServiceTests
         repo.Setup(r => r.GetDependenciesAsync(1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ProcessDependencies { RiskProcesses = 0, Responsibilities = 1, OwnedProcesses = 0 });
 
-        var service = new ProcessService(repo.Object);
+        var service = new ProcessService(repo.Object, People());
 
         // Act & Assert
         await Assert.ThrowsAsync<ProcessHasDependenciesException>(() =>
             service.DeactivateAsync(1));
+    }
+
+    // Every person id is an active card of the user with the same id
+    private static IPersonRepository People()
+    {
+        var people = new Mock<IPersonRepository>();
+        people.Setup(r => r.GetByIdAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((int id, CancellationToken _) => Person.Rehydrate(id, id, 1, "", true));
+        return people.Object;
     }
 }

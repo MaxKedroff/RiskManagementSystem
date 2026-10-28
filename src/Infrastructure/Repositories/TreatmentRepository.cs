@@ -202,7 +202,7 @@ public sealed class TreatmentRepository : ITreatmentRepository
                 SELECT 1
                 FROM treatment.treatments
                 WHERE risk_process_id = @RiskProcessId
-                  AND treatment_status NOT IN ('Completed', 'Cancelled')
+                  AND treatment_status IN ('PendingApproval', 'Approved', 'AwaitingExecution', 'InProgress', 'Hold')
             );
             """;
 
@@ -247,9 +247,17 @@ public sealed class TreatmentRepository : ITreatmentRepository
                 SELECT 1
                 FROM treatment.treatments t
                 JOIN risk.risk_processes rp ON rp.risk_process_id = t.risk_process_id
+                JOIN org.processes p ON p.process_id = rp.process_id
                 WHERE rp.risk_id = @RiskId
                   AND t.treatment_id <> @ExcludeTreatmentId
-                  AND t.treatment_status NOT IN ('Completed', 'Cancelled')
+                  -- 11 §3 п.20–22: one occupying treatment per directorate of the risk
+                  AND t.treatment_status IN ('PendingApproval', 'Approved', 'AwaitingExecution', 'InProgress')
+                  AND p.directorate_id = (
+                      SELECT p2.directorate_id
+                      FROM treatment.treatments t2
+                      JOIN risk.risk_processes rp2 ON rp2.risk_process_id = t2.risk_process_id
+                      JOIN org.processes p2 ON p2.process_id = rp2.process_id
+                      WHERE t2.treatment_id = @ExcludeTreatmentId)
             );
             """;
 
@@ -353,7 +361,7 @@ public sealed class TreatmentRepository : ITreatmentRepository
                 SELECT 1
                 FROM treatment.treatments
                 WHERE risk_process_id = @RiskProcessId
-                  AND treatment_status IN ('Planned', 'InProgress', 'PendingApproval', 'AwaitingExecution', 'Approved', 'Hold')
+                  AND treatment_status IN ('PendingApproval', 'Approved', 'AwaitingExecution', 'InProgress', 'Hold')
             );
             """;
 
@@ -472,5 +480,59 @@ public sealed class TreatmentRepository : ITreatmentRepository
         public int? AssignedToId { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset? UpdatedAt { get; init; }
+    }
+
+    public async Task<string?> GetResponseModeAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT response_mode
+            FROM assessment.assessments
+            WHERE risk_id = @RiskId
+              AND is_active = TRUE
+            LIMIT 1;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<string?>(
+            new CommandDefinition(sql, new { RiskId = riskId }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<bool> IsLinkActiveAsync(
+        int riskProcessId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM risk.risk_processes
+                WHERE risk_process_id = @RiskProcessId
+                  AND unlinked_at IS NULL
+            );
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(sql, new { RiskProcessId = riskProcessId }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<int?> GetTreatmentProcessIdAsync(
+        int treatmentId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT rp.process_id
+            FROM treatment.treatments t
+            JOIN risk.risk_processes rp ON rp.risk_process_id = t.risk_process_id
+            WHERE t.treatment_id = @TreatmentId;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(sql, new { TreatmentId = treatmentId }, cancellationToken: cancellationToken));
     }
 }

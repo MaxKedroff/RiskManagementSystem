@@ -134,6 +134,15 @@ public sealed class Treatment : Entity
         Touch();
     }
 
+    public void SetPlannedCost(decimal plannedCost)
+    {
+        if (plannedCost < 0)
+            throw new DomainException("Плановая стоимость не может быть отрицательной.");
+
+        PlannedCost = Money(plannedCost);
+        Touch();
+    }
+
     public void SetActualCost(decimal actualCost)
     {
         if (actualCost < 0)
@@ -172,9 +181,6 @@ public sealed class Treatment : Entity
     {
         if (Status != TreatmentStatus.Planned)
             throw new DomainException("Отправить на согласование можно только черновик.");
-
-        if (PlannedCost <= 0)
-            throw new DomainException("Необходимо указать плановую стоимость.");
 
         Status = TreatmentStatus.PendingApproval;
         Touch();

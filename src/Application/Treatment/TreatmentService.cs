@@ -50,6 +50,14 @@ public sealed class TreatmentService
         if (await _treatmentRepository.GetActiveAssessmentIdAsync(riskId, cancellationToken) is null)
             throw new TreatmentValidationException("Для риска не найдена активная оценка.");
 
+        await EnsureTreatModeAsync(riskId, cancellationToken);
+
+        if (!await _treatmentRepository.IsLinkActiveAsync(request.RiskProcessId, cancellationToken))
+            throw new TreatmentValidationException("Процесс больше не связан с риском.");
+
+        if (request.DueDate is null)
+            throw new TreatmentValidationException("Необходимо указать срок выполнения.");
+
         var treatment = new Domain.Treatment.Treatment(
             request.RiskProcessId,
             request.TreatmentTitle,
@@ -73,6 +81,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.Planned)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Черновик'.");
@@ -84,7 +93,7 @@ public sealed class TreatmentService
         if (request.DueDate.HasValue)
             treatment.Reschedule(request.DueDate.Value);
         if (request.TreatmentCostPlan.HasValue)
-            treatment.SetActualCost(request.TreatmentCostPlan.Value);
+            treatment.SetPlannedCost(request.TreatmentCostPlan.Value);
         if (request.TreatmentCostAct.HasValue)
             treatment.SetActualCost(request.TreatmentCostAct.Value);
 
@@ -120,17 +129,15 @@ public sealed class TreatmentService
         int userId,
         CancellationToken cancellationToken = default)
     {
-        if (!await _permissionService.HasRightAsync(userId, "edit_components", cancellationToken))
-            throw new TreatmentPermissionException("Отсутствует право edit_components.");
+        if (!await _permissionService.HasRightAsync(userId, "execute_treatment", cancellationToken))
+            throw new TreatmentPermissionException("Отсутствует право execute_treatment.");
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.Planned)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Черновик'.");
-
-        if (treatment.PlannedCost <= 0)
-            throw new TreatmentValidationException("Необходимо указать плановую стоимость.");
 
         var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatment.RiskProcessId);
@@ -144,13 +151,18 @@ public sealed class TreatmentService
         if (await _treatmentRepository.GetActiveAssessmentIdAsync(riskId, cancellationToken) is null)
             throw new TreatmentValidationException("Для риска не найдена активная оценка.");
 
+        await EnsureTreatModeAsync(riskId, cancellationToken);
+
         if (await _approvalRequestRepository.HasOpenApprovalAsync(treatmentId, cancellationToken))
             throw new TreatmentValidationException("Уже существует открытый запрос на согласование.");
 
         if (await _treatmentRepository.HasConflictingTreatmentAsync(riskId, treatmentId, cancellationToken))
-            throw new TreatmentValidationException("Существует конфликтующее мероприятие.");
+            throw new TreatmentValidationException("По этой дирекции уже есть мера в работе или на согласовании.");
 
         var settings = await _approvalSettingsRepository.GetAsync(cancellationToken);
+        if (treatment.PlannedCost < settings.OwnerThreshold)
+            throw new TreatmentValidationException("Согласование не требуется: передайте меру к выполнению.");
+
         ApprovalLevel approvalLevel;
         // Thresholds are inclusive lower bounds of each level
         if (treatment.PlannedCost >= settings.CeoThreshold)
@@ -185,11 +197,17 @@ public sealed class TreatmentService
         if (approvalRequest.Status != ApprovalStatus.Pending)
             throw new TreatmentValidationException("Запрос уже обработан.");
 
+        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken)
+            ?? throw new TreatmentNotFoundException(approvalRequest.TreatmentId);
+        await EnsureApproverAsync(approvalRequest, userId, cancellationToken);
+
+        var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken) ?? 0;
+        if (await _treatmentRepository.HasConflictingTreatmentAsync(riskId, treatment.Id, cancellationToken))
+            throw new TreatmentValidationException("По этой дирекции уже есть мера в работе или на согласовании.");
+
+        treatment.Approve();
         approvalRequest.Approve(userId, approvalComment);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
-
-        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken);
-        treatment.Approve();
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, "Approved", cancellationToken);
 
         return new ApproveResponse(approvalRequestId, "Approved", "Approved");
@@ -214,11 +232,13 @@ public sealed class TreatmentService
         if (string.IsNullOrWhiteSpace(approvalReason))
             throw new TreatmentValidationException("Причина отклонения обязательна.");
 
+        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken)
+            ?? throw new TreatmentNotFoundException(approvalRequest.TreatmentId);
+        await EnsureApproverAsync(approvalRequest, userId, cancellationToken);
+
+        treatment.Reject();
         approvalRequest.Reject(userId, approvalReason);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
-
-        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken);
-        treatment.Reject();
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, "Planned", cancellationToken);
 
         return new RejectResponse(approvalRequestId, "Rejected", "Planned");
@@ -231,8 +251,8 @@ public sealed class TreatmentService
         string revokeReason,
         CancellationToken cancellationToken = default)
     {
-        if (!await _permissionService.HasRightAsync(userId, "admin", cancellationToken))
-            throw new TreatmentPermissionException("Отсутствует право admin.");
+        if (!await _permissionService.IsAdminAsync(userId, cancellationToken))
+            throw new TreatmentPermissionException("Отзывает согласование только администратор.");
 
         var approvalRequest = await _approvalRequestRepository.GetByIdAsync(approvalRequestId, cancellationToken)
             ?? throw new TreatmentNotFoundException(approvalRequestId);
@@ -243,12 +263,23 @@ public sealed class TreatmentService
         if (string.IsNullOrWhiteSpace(revokeReason))
             throw new TreatmentValidationException("Причина отзыва обязательна.");
 
+        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken)
+            ?? throw new TreatmentNotFoundException(approvalRequest.TreatmentId);
+
+        if (treatment.Status is not (TreatmentStatus.PendingApproval or TreatmentStatus.Approved))
+            throw new TreatmentValidationException("Мера уже передана к выполнению, согласование не отозвать.");
+
+        treatment.Revoke();
         approvalRequest.Revoke(userId, revokeReason);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
-
-        var treatment = await _treatmentRepository.GetByIdAsync(approvalRequest.TreatmentId, cancellationToken);
-        treatment.Revoke();
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, treatment.Status.ToString(), cancellationToken);
+
+        if (treatment.Status == TreatmentStatus.Cancelled)
+        {
+            var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken);
+            if (riskId.HasValue && !await HasBlockingTreatmentsAsync(riskId.Value, cancellationToken))
+                await _riskService.CompleteCycleAsync(riskId.Value, cancellationToken);
+        }
 
         return new RevokeResponse(approvalRequestId, "Revoked", treatment.Status.ToString());
     }
@@ -266,12 +297,33 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status is not (TreatmentStatus.Planned or TreatmentStatus.Approved))
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Черновик' или 'Согласовано'.");
 
         if (request.AssigneeId <= 0)
             throw new TreatmentValidationException("Исполнитель не выбран.");
+
+        var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken)
+            ?? throw new TreatmentNotFoundException(treatment.RiskProcessId);
+
+        if (await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) != "Open")
+            throw new TreatmentValidationException("Риск должен быть в статусе 'Активен'.");
+
+        await EnsureTreatModeAsync(riskId, cancellationToken);
+
+        if (treatment.Status == TreatmentStatus.Planned)
+        {
+            var settings = await _approvalSettingsRepository.GetAsync(cancellationToken);
+            if (treatment.PlannedCost >= settings.OwnerThreshold)
+                throw new TreatmentValidationException("Мера требует согласования: отправьте её на согласование.");
+        }
+
+        if (await _treatmentRepository.HasConflictingTreatmentAsync(riskId, treatmentId, cancellationToken))
+            throw new TreatmentValidationException("По этой дирекции уже есть мера в работе или на согласовании.");
+
+        await EnsureExecutorAsync(request.AssigneeId, treatmentId, cancellationToken);
 
         treatment.AssignTo(request.AssigneeId);
         await _treatmentRepository.UpdateAssigneeAsync(treatmentId, request.AssigneeId, userId, cancellationToken);
@@ -292,15 +344,18 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status is not (TreatmentStatus.AwaitingExecution or TreatmentStatus.InProgress or TreatmentStatus.Hold))
             throw new TreatmentValidationException("Недопустимый статус для замены исполнителя.");
 
-        if (treatment.AssignedToId is null)
+        if (treatment.AssignedToId is null && treatment.Status != TreatmentStatus.Hold)
             throw new TreatmentValidationException("Назначение отсутствует.");
 
         if (request.AssigneeId <= 0)
             throw new TreatmentValidationException("Новый исполнитель недопустим.");
+
+        await EnsureExecutorAsync(request.AssigneeId, treatmentId, cancellationToken);
 
         await _treatmentRepository.UpdateAssigneeAsync(treatmentId, request.AssigneeId, userId, cancellationToken);
 
@@ -318,6 +373,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.Hold)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Холд'.");
@@ -341,12 +397,15 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
-        if (treatment.Status is not (TreatmentStatus.AwaitingExecution or TreatmentStatus.Hold))
-            throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Ожидает выполнения' или 'Холд'.");
+        if (treatment.Status != TreatmentStatus.AwaitingExecution)
+            throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Ожидает выполнения'.");
 
         if (treatment.AssignedToId is null)
             throw new TreatmentValidationException("Необходимо назначить исполнителя.");
+
+        await EnsureExecutorAsync(treatment.AssignedToId.Value, treatmentId, cancellationToken);
 
         var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken) ?? 0;
         if (await _treatmentRepository.HasConflictingTreatmentAsync(riskId, treatmentId, cancellationToken))
@@ -369,6 +428,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.InProgress)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'В работе'.");
@@ -390,6 +450,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.Hold)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'Холд'.");
@@ -407,8 +468,15 @@ public sealed class TreatmentService
         if (await _treatmentRepository.GetActiveAssessmentIdAsync(riskId, cancellationToken) is null)
             throw new TreatmentValidationException("Для риска не найдена активная оценка.");
 
+        await EnsureTreatModeAsync(riskId, cancellationToken);
+
+        if (!await _treatmentRepository.IsLinkActiveAsync(treatment.RiskProcessId, cancellationToken))
+            throw new TreatmentValidationException("Процесс больше не связан с риском.");
+
+        await EnsureExecutorAsync(treatment.AssignedToId.Value, treatmentId, cancellationToken);
+
         if (await _treatmentRepository.HasConflictingTreatmentAsync(riskId, treatmentId, cancellationToken))
-            throw new TreatmentValidationException("Существует конфликтующее мероприятие.");
+            throw new TreatmentValidationException("По этой дирекции уже есть мера в работе или на согласовании.");
 
         treatment.Resume();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "InProgress", cancellationToken);
@@ -428,6 +496,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status != TreatmentStatus.InProgress)
             throw new TreatmentValidationException("Мероприятие должно быть в статусе 'В работе'.");
@@ -483,6 +552,7 @@ public sealed class TreatmentService
 
         var treatment = await _treatmentRepository.GetByIdAsync(treatmentId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatmentId);
+        await EnsureOwnerAsync(treatmentId, userId, cancellationToken);
 
         if (treatment.Status is not (TreatmentStatus.Planned or TreatmentStatus.AwaitingExecution or TreatmentStatus.InProgress))
             throw new TreatmentValidationException("Недопустимый статус для отмены.");
@@ -490,8 +560,15 @@ public sealed class TreatmentService
         var riskId = await _treatmentRepository.GetProcessRiskIdAsync(treatment.RiskProcessId, cancellationToken)
             ?? throw new TreatmentNotFoundException(treatment.RiskProcessId);
 
+        var wasDraft = treatment.Status == TreatmentStatus.Planned;
         treatment.CancelExecution();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "Cancelled", cancellationToken);
+
+        if (wasDraft)
+        {
+            var riskStatus = await _treatmentRepository.GetRiskStatusAsync(riskId, cancellationToken) ?? "Unknown";
+            return new CancelResponse(treatmentId, "Cancelled", riskStatus, false, false);
+        }
 
         var activeProcessIds = await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken);
         var hasOtherActiveTreatments = false;
@@ -519,6 +596,52 @@ public sealed class TreatmentService
             cycleResult.RiskStatus,
             cycleResult.CycleCompleted,
             cycleResult.HasDraftsWarning);
+    }
+
+    private async Task EnsureOwnerAsync(int treatmentId, int userId, CancellationToken cancellationToken)
+    {
+        if (await _permissionService.IsAdminAsync(userId, cancellationToken))
+            return;
+
+        if (!await _permissionService.IsTreatmentOwnerAsync(userId, treatmentId, cancellationToken))
+            throw new TreatmentPermissionException("Действие доступно владельцу процесса меры.");
+    }
+
+    private async Task EnsureApproverAsync(ApprovalRequest request, int userId, CancellationToken cancellationToken)
+    {
+        if (await _permissionService.IsAdminAsync(userId, cancellationToken))
+            return;
+
+        var processId = await _treatmentRepository.GetTreatmentProcessIdAsync(request.TreatmentId, cancellationToken)
+            ?? throw new TreatmentValidationException("Мера не связана с процессом.");
+
+        if (!await _permissionService.CanActAtLevelAsync(userId, request.RequiredLevel.ToString(), processId, cancellationToken))
+            throw new TreatmentPermissionException("Запрос этого уровня согласует другой участник.");
+    }
+
+    private async Task EnsureExecutorAsync(int assigneeId, int treatmentId, CancellationToken cancellationToken)
+    {
+        if (!await _permissionService.IsValidExecutorAsync(assigneeId, treatmentId, cancellationToken))
+            throw new TreatmentValidationException(
+                "Исполнитель должен быть активным сотрудником дирекции процесса с ролью OWNER или EMPLOYEE.");
+    }
+
+    private async Task EnsureTreatModeAsync(int riskId, CancellationToken cancellationToken)
+    {
+        var mode = await _treatmentRepository.GetResponseModeAsync(riskId, cancellationToken);
+        if (mode is not ("treat" or "split"))
+            throw new TreatmentValidationException("Меры создаются после выбора режима «Обработать» или «Разделить».");
+    }
+
+    private async Task<bool> HasBlockingTreatmentsAsync(int riskId, CancellationToken cancellationToken)
+    {
+        foreach (var riskProcessId in await _treatmentRepository.GetActiveRiskProcessIdsAsync(riskId, cancellationToken))
+        {
+            if (await _treatmentRepository.HasActiveTreatmentAsync(riskProcessId, cancellationToken))
+                return true;
+        }
+
+        return false;
     }
 }
 

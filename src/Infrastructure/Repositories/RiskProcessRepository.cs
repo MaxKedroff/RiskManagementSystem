@@ -52,6 +52,7 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
                 FROM risk.risk_processes
                 WHERE risk_id = @RiskId
                   AND is_risk_process_primary = TRUE
+                  AND unlinked_at IS NULL
             );
             """;
 
@@ -73,6 +74,7 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
             FROM risk.risk_processes
             WHERE risk_id = @RiskId
               AND is_risk_process_primary = TRUE
+              AND unlinked_at IS NULL
             LIMIT 1;
             """;
 
@@ -115,7 +117,8 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
             SELECT DISTINCT process_id
             FROM risk.risk_processes
             WHERE risk_id = @RiskId
-              AND process_id IS NOT NULL;
+              AND process_id IS NOT NULL
+              AND unlinked_at IS NULL;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
@@ -135,8 +138,10 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
     {
         const string sql = """
             UPDATE risk.risk_processes
-            SET is_risk_process_primary = FALSE
-            WHERE risk_id = @RiskId;
+            SET is_risk_process_primary = FALSE,
+                unlinked_at = NOW()
+            WHERE risk_id = @RiskId
+              AND unlinked_at IS NULL;
             """;
 
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
@@ -180,5 +185,102 @@ public sealed class RiskProcessRepository : IRiskProcessRepository
                     IsPrimary = isPrimary
                 },
                 cancellationToken: cancellationToken));
+    }
+
+    public async Task<int?> GetPrimaryProcessIdAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT process_id
+            FROM risk.risk_processes
+            WHERE risk_id = @RiskId
+              AND is_risk_process_primary = TRUE
+              AND unlinked_at IS NULL
+            LIMIT 1;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<int?>(
+            new CommandDefinition(sql, new { RiskId = riskId }, cancellationToken: cancellationToken));
+    }
+
+    // 08 §5: a process cannot leave the risk while any of its treatments is not Done or Cancelled.
+    public async Task<bool> HasOpenTreatmentsOnProcessAsync(
+        int riskId,
+        int processId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM treatment.treatments t
+                JOIN risk.risk_processes rp ON rp.risk_process_id = t.risk_process_id
+                WHERE rp.risk_id = @RiskId
+                  AND rp.process_id = @ProcessId
+                  AND t.treatment_status NOT IN ('Completed', 'Cancelled')
+            );
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(sql, new { RiskId = riskId, ProcessId = processId },
+                cancellationToken: cancellationToken));
+    }
+
+    public async Task UnlinkProcessAsync(
+        int riskId,
+        int processId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risk_processes
+            SET is_risk_process_primary = FALSE,
+                unlinked_at = NOW()
+            WHERE risk_id = @RiskId
+              AND process_id = @ProcessId
+              AND unlinked_at IS NULL;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        await connection.ExecuteAsync(
+            new CommandDefinition(sql, new { RiskId = riskId, ProcessId = processId },
+                cancellationToken: cancellationToken));
+    }
+
+    public async Task SetPrimaryAsync(
+        int riskId,
+        int processId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            UPDATE risk.risk_processes
+            SET is_risk_process_primary = FALSE
+            WHERE risk_id = @RiskId
+              AND is_risk_process_primary = TRUE;
+
+            UPDATE risk.risk_processes
+            SET is_risk_process_primary = TRUE
+            WHERE risk_process_id = (
+                SELECT risk_process_id
+                FROM risk.risk_processes
+                WHERE risk_id = @RiskId
+                  AND process_id = @ProcessId
+                  AND unlinked_at IS NULL
+                ORDER BY risk_process_id DESC
+                LIMIT 1);
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+        using var transaction = connection.BeginTransaction();
+
+        await connection.ExecuteAsync(
+            new CommandDefinition(sql, new { RiskId = riskId, ProcessId = processId },
+                transaction, cancellationToken: cancellationToken));
+
+        transaction.Commit();
     }
 }

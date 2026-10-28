@@ -16,7 +16,8 @@ public enum RiskAcceptanceLevel
 {
     Owner = 1,
     Director = 2,
-    Ceo = 3
+    Ceo = 3,
+    TreatmentRequired = 4
 }
 
 public sealed class HazardGroup : Entity
@@ -191,6 +192,7 @@ public sealed class Risk : Entity
             "Owner" => RiskAcceptanceLevel.Owner,
             "Director" => RiskAcceptanceLevel.Director,
             "Ceo" => RiskAcceptanceLevel.Ceo,
+            "TreatmentRequired" => RiskAcceptanceLevel.TreatmentRequired,
             null => null,
             _ => null
         };

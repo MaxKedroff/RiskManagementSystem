@@ -178,11 +178,7 @@ public sealed class RiskService
         }
 
         // Check user is owner of primary process
-        var primaryOwnerUserId = await _riskProcessRepository.GetPrimaryOwnerUserIdAsync(riskId, cancellationToken);
-        if (primaryOwnerUserId.HasValue && primaryOwnerUserId.Value != userId)
-        {
-            throw new RiskAuthorizationException("Вы не являетесь владельцем основного процесса этого риска.");
-        }
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         // Validate completeness
         var normalizedTitle = ValidateTitle(request.RiskTitle);
@@ -235,6 +231,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         // Check status is "Draft"
         if (risk.Status != Domain.Risk.RiskStatus.Draft)
@@ -315,13 +312,15 @@ public sealed class RiskService
                 acceptanceLevel = "Owner";
             else if (riskScore <= thresholds.DirectorMaxScore)
                 acceptanceLevel = "Director";
-            else
+            else if (riskScore <= thresholds.CeoMaxScore)
                 acceptanceLevel = "Ceo";
+            else
+                acceptanceLevel = "TreatmentRequired";
         }
         else
         {
-            // Fallback: use simple thresholds
-            acceptanceLevel = riskScore <= 4 ? "Owner" : riskScore <= 9 ? "Director" : "Ceo";
+            // Fallback: the default thresholds of 10 §3 п.4
+            acceptanceLevel = riskScore <= 10 ? "Owner" : riskScore <= 15 ? "Director" : riskScore <= 19 ? "Ceo" : "TreatmentRequired";
         }
 
         // Create Assessment
@@ -371,6 +370,21 @@ public sealed class RiskService
         if (!await _riskAssessmentRepository.HasActiveAssessmentAsync(riskId, cancellationToken))
             throw new RiskValidationException("Для риска не найдена активная оценка.");
 
+        if (risk.AcceptanceLevel is null)
+            throw new RiskValidationException("Для риска не определён уровень принятия.");
+
+        if (!await _permissionService.IsAdminAsync(userId, cancellationToken))
+        {
+            if (risk.AcceptanceLevel == Domain.Risk.RiskAcceptanceLevel.TreatmentRequired)
+                throw new RiskPermissionException("Риск уровня TREATMENT_REQUIRED принимает только администратор.");
+
+            var primaryProcessId = await _riskProcessRepository.GetPrimaryProcessIdAsync(riskId, cancellationToken)
+                ?? throw new RiskValidationException("У риска не указана основная связь с процессом.");
+
+            if (!await _permissionService.CanActAtLevelAsync(userId, risk.AcceptanceLevel.Value.ToString(), primaryProcessId, cancellationToken))
+                throw new RiskPermissionException("Риск этого уровня принимает другой участник.");
+        }
+
         var assessmentId = await GetActiveAssessmentIdAsync(riskId, cancellationToken);
 
         // Check responseMode is null
@@ -406,6 +420,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         if (risk.Status != Domain.Risk.RiskStatus.Open)
             throw new RiskValidationException("Риск должен быть в статусе 'Активен'.");
@@ -435,6 +450,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         if (risk.Status != Domain.Risk.RiskStatus.Open)
             throw new RiskValidationException("Риск должен быть в статусе 'Активен'.");
@@ -455,16 +471,8 @@ public sealed class RiskService
         if (!await _riskAssessmentRepository.HasActiveAssessmentAsync(riskId, cancellationToken))
             throw new RiskValidationException("Для риска не найдена активная оценка.");
 
-        // Check all processes are active
-        foreach (var processId in request.ProcessIds)
-        {
-            if (!await _processRepository.UserExistsAsync(processId, cancellationToken))
-            {
-                // ProcessRepository.UserExistsAsync checks if a user exists, not a process
-                // We need to check if the process is active
-                // Let me use GetOwnerInfoAsync instead
-            }
-        }
+        if (!await _riskAssessmentRepository.HasAssessmentWithNullResponseModeAsync(riskId, cancellationToken))
+            throw new RiskValidationException("Режим ответа уже выбран.");
 
         // Check processes are active using GetOwnerInfoAsync
         var processOwnerInfos = new List<ProcessOwnerInfo>();
@@ -476,20 +484,20 @@ public sealed class RiskService
             processOwnerInfos.Add(ownerInfo);
         }
 
-        // Check no blocking measures on excluded processes
+        // Check no live measures on excluded processes
         var existingProcessIds = await _riskProcessRepository.GetExistingProcessIdsAsync(riskId, cancellationToken);
         var excludedProcessIds = existingProcessIds.Except(request.ProcessIds).ToArray();
         foreach (var processId in excludedProcessIds)
         {
-            if (await _treatmentRepository.HasNonTerminalTreatmentAsync(processId, cancellationToken))
-                throw new RiskValidationException($"Процесс с ID {processId} имеет нетерминальную меру обработки и не может быть исключён.");
+            if (await _riskProcessRepository.HasOpenTreatmentsOnProcessAsync(riskId, processId, cancellationToken))
+                throw new RiskValidationException($"Процесс с ID {processId} имеет незавершённую меру обработки и не может быть исключён.");
         }
 
-        // Deactivate existing links
-        await _riskProcessRepository.DeactivateRiskProcessLinksAsync(riskId, cancellationToken);
+        // Close excluded links, keep preserved ones, add the new processes
+        foreach (var processId in excludedProcessIds)
+            await _riskProcessRepository.UnlinkProcessAsync(riskId, processId, cancellationToken);
 
-        // Create new risk_processes for selected processIds
-        foreach (var ownerInfo in processOwnerInfos)
+        foreach (var ownerInfo in processOwnerInfos.Where(o => !existingProcessIds.Contains(o.ProcessId)))
         {
             var ownerUserId = ownerInfo.OwnerUserId ?? userId;
             await _riskProcessRepository.CreateRiskProcessAsync(
@@ -497,9 +505,11 @@ public sealed class RiskService
                 ownerInfo.ProcessId,
                 ownerUserId,
                 ownerInfo.OwnerPersonId,
-                ownerInfo.ProcessId == request.PrimaryProcessId,
+                false,
                 cancellationToken);
         }
+
+        await _riskProcessRepository.SetPrimaryAsync(riskId, request.PrimaryProcessId, cancellationToken);
 
         var assessmentId = await GetActiveAssessmentIdAsync(riskId, cancellationToken);
         await _riskAssessmentRepository.UpdateResponseModeAsync(assessmentId, "split", cancellationToken);
@@ -519,6 +529,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         if (risk.Status != Domain.Risk.RiskStatus.Open)
             throw new RiskValidationException("Риск должен быть в статусе 'Активен'.");
@@ -540,6 +551,9 @@ public sealed class RiskService
 
         if (!newOwnerInfo.IsActive)
             throw new RiskValidationException("Новый процесс неактивен.");
+
+        if ((await _riskProcessRepository.GetExistingProcessIdsAsync(riskId, cancellationToken)).Contains(request.NewProcessId))
+            throw new RiskValidationException("Риск уже связан с этим процессом.");
 
         // Update assessment.responseMode = "transfer"
         var assessmentId = await GetActiveAssessmentIdAsync(riskId, cancellationToken);
@@ -577,11 +591,12 @@ public sealed class RiskService
         ReassessRiskRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (!await _permissionService.HasRightAsync(userId, "edit_components", cancellationToken))
-            throw new RiskPermissionException("Отсутствует право edit_components.");
+        if (!await _permissionService.HasRightAsync(userId, "assess_risk", cancellationToken))
+            throw new RiskPermissionException("Отсутствует право assess_risk.");
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         if (risk.Status != Domain.Risk.RiskStatus.AwaitingReassessment)
             throw new RiskValidationException("Риск должен быть в статусе 'Ожидает переоценки'.");
@@ -657,13 +672,15 @@ public sealed class RiskService
                 acceptanceLevel = "Owner";
             else if (riskScore <= thresholds.DirectorMaxScore)
                 acceptanceLevel = "Director";
-            else
+            else if (riskScore <= thresholds.CeoMaxScore)
                 acceptanceLevel = "Ceo";
+            else
+                acceptanceLevel = "TreatmentRequired";
         }
         else
         {
-            // Fallback: use simple thresholds
-            acceptanceLevel = riskScore <= 4 ? "Owner" : riskScore <= 9 ? "Director" : "Ceo";
+            // Fallback: the default thresholds of 10 §3 п.4
+            acceptanceLevel = riskScore <= 10 ? "Owner" : riskScore <= 15 ? "Director" : riskScore <= 19 ? "Ceo" : "TreatmentRequired";
         }
 
         // Create Assessment with isActive = true, responseMode = null
@@ -707,6 +724,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         if (risk.Status != Domain.Risk.RiskStatus.Accepted &&
             risk.Status != Domain.Risk.RiskStatus.Closed)
@@ -783,6 +801,7 @@ public sealed class RiskService
         var hasDrafts = await _riskRepository.IsActiveDraftAsync(riskId, cancellationToken);
 
         // Set risk to AwaitingReassessment
+        await _riskRepository.ClearAcceptanceLevelAsync(riskId, cancellationToken);
         await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
 
         return new CycleCompletionResult(
@@ -803,6 +822,7 @@ public sealed class RiskService
 
         var risk = await _riskRepository.GetByIdAsync(riskId, cancellationToken)
             ?? throw new RiskNotFoundException(riskId);
+        await EnsureOwnerAsync(riskId, userId, cancellationToken);
 
         // Check allowed statuses
         var allowed = risk.Status is Domain.Risk.RiskStatus.Draft or
@@ -834,6 +854,15 @@ public sealed class RiskService
             cancellationToken);
 
         return new CloseRiskResponse(riskId, "Closed");
+    }
+
+    private async Task EnsureOwnerAsync(int riskId, int userId, CancellationToken cancellationToken)
+    {
+        if (await _permissionService.IsAdminAsync(userId, cancellationToken))
+            return;
+
+        if (!await _permissionService.IsRiskOwnerAsync(userId, riskId, cancellationToken))
+            throw new RiskPermissionException("Действие доступно владельцу основного процесса риска.");
     }
 
     private async Task<int> GetActiveAssessmentIdAsync(

@@ -23,6 +23,9 @@ namespace Application.Abstractions
         Task<bool> HasNonTerminalTreatmentAsync(int riskProcessId, CancellationToken cancellationToken = default);
         Task<bool> AllTreatmentsTerminalAsync(int riskProcessId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<TreatmentListItem>> GetListAsync(CancellationToken cancellationToken = default);
+        Task<string?> GetResponseModeAsync(int riskId, CancellationToken cancellationToken = default);
+        Task<bool> IsLinkActiveAsync(int riskProcessId, CancellationToken cancellationToken = default);
+        Task<int?> GetTreatmentProcessIdAsync(int treatmentId, CancellationToken cancellationToken = default);
     }
 
     public sealed class TreatmentListItem
