@@ -31,9 +31,9 @@ public sealed class ApprovalRequestsController : ControllerBase
         {
             return Ok(await _service.GetApprovalRequestsAsync(GetUserId(), cancellationToken));
         }
-        catch (TreatmentPermissionException)
+        catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -69,7 +69,7 @@ public sealed class ApprovalRequestsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -105,7 +105,7 @@ public sealed class ApprovalRequestsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -141,7 +141,7 @@ public sealed class ApprovalRequestsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {

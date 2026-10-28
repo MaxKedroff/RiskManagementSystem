@@ -31,9 +31,9 @@ public sealed class TreatmentsController : ControllerBase
         {
             return Ok(await _service.GetListAsync(GetUserId(), cancellationToken));
         }
-        catch (TreatmentPermissionException)
+        catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -68,7 +68,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -104,7 +104,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -137,7 +137,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -173,7 +173,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -209,7 +209,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -242,7 +242,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -275,7 +275,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -308,7 +308,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -341,7 +341,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -377,7 +377,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -410,7 +410,7 @@ public sealed class TreatmentsController : ControllerBase
         }
         catch (TreatmentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {

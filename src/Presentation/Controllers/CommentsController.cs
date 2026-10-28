@@ -42,7 +42,7 @@ public sealed class CommentsController : ControllerBase
         }
         catch (CommentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -78,7 +78,7 @@ public sealed class CommentsController : ControllerBase
         }
         catch (CommentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -113,7 +113,7 @@ public sealed class CommentsController : ControllerBase
         }
         catch (CommentPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {

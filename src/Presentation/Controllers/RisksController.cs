@@ -37,7 +37,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -61,9 +61,9 @@ public sealed class RisksController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
-        catch (RiskPermissionException)
+        catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -94,7 +94,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -135,7 +135,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -177,7 +177,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -215,7 +215,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -248,7 +248,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -281,7 +281,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -314,7 +314,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -350,7 +350,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -383,7 +383,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
@@ -416,7 +416,7 @@ public sealed class RisksController : ControllerBase
         }
         catch (RiskPermissionException ex)
         {
-            return Forbid();
+            return StatusCode(StatusCodes.Status403Forbidden, new { message = ex.Message });
         }
         catch (Exception ex)
         {
