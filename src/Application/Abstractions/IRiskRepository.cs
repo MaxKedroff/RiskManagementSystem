@@ -33,5 +33,6 @@ namespace Application.Abstractions
         int? RiskScore,
         string RiskStatus,
         string? AcceptanceLevel,
-        int[]? RiskProcessIds = null);
+        int[]? RiskProcessIds = null,
+        string? ResponseMode = null);
 }

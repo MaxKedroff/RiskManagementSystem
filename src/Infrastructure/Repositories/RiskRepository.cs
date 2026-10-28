@@ -229,7 +229,8 @@ public sealed class RiskRepository : IRiskRepository
                 c.category_name AS CategoryName,
                 al.likelihood_level_name AS LikelihoodName,
                 il.impact_level_name AS ImpactName,
-                a2.risk_score AS RiskScore
+                a2.risk_score AS RiskScore,
+                a2.response_mode AS ResponseMode
             FROM risk.risks r
             LEFT JOIN org.assets a ON r.asset_id = a.asset_id
             LEFT JOIN risk.hazards h ON r.hazard_id = h.hazard_id
@@ -271,7 +272,8 @@ public sealed class RiskRepository : IRiskRepository
                 first.RiskScore,
                 first.RiskStatus,
                 first.AcceptanceLevel,
-                processInfo.RiskProcessIds));
+                processInfo.RiskProcessIds,
+                first.ResponseMode));
         }
 
         return results.ToArray();
@@ -382,6 +384,7 @@ public sealed class RiskRepository : IRiskRepository
 
     private sealed class RiskListRow
     {
+        public string? ResponseMode { get; init; }
         public int RiskId { get; init; }
         public string RiskTitle { get; init; } = string.Empty;
         public string RiskStatus { get; init; } = string.Empty;
