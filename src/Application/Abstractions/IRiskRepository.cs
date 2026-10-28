@@ -15,6 +15,7 @@ namespace Application.Abstractions
         Task<bool> ClearAcceptanceLevelAsync(int riskId, CancellationToken cancellationToken = default);
         Task<bool> SetAwaitingReassessmentStatusAsync(int riskId, CancellationToken cancellationToken = default);
         Task<RiskListItem[]> GetAllAsync(CancellationToken cancellationToken = default);
+        Task<RiskDetails?> GetDetailsAsync(int riskId, CancellationToken cancellationToken = default);
         Task<bool> IsActiveDraftAsync(int riskId, CancellationToken cancellationToken = default);
     }
 

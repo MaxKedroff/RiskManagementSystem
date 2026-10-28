@@ -398,4 +398,97 @@ public sealed class RiskRepository : IRiskRepository
         public string DirectorateTitle { get; init; } = string.Empty;
         public string UserFio { get; init; } = string.Empty;
     }
+
+    public async Task<RiskDetails?> GetDetailsAsync(
+        int riskId,
+        CancellationToken cancellationToken = default)
+    {
+        const string riskSql = """
+            SELECT
+                r.risk_id               AS RiskId,
+                r.risk_title            AS RiskTitle,
+                r.risk_description      AS RiskDescription,
+                r.risk_status           AS RiskStatus,
+                r.risk_acceptance_level AS AcceptanceLevel,
+                r.risk_close_reason     AS CloseReason,
+                r.hazard_id             AS HazardId,
+                h.hazard_name           AS Hazard,
+                r.category_id           AS CategoryId,
+                c.category_name         AS Category,
+                r.asset_id              AS AssetId,
+                a.asset_title           AS Asset,
+                a.asset_hour_cost       AS AssetHourCost,
+                r.risk_author_id        AS AuthorId,
+                u.user_fio              AS AuthorName,
+                (SELECT p.person_position FROM org.persons p
+                  WHERE p.user_id = r.risk_author_id
+                  ORDER BY p.is_person_active DESC, p.person_id DESC LIMIT 1) AS AuthorPosition
+            FROM risk.risks r
+            LEFT JOIN risk.hazards h ON h.hazard_id = r.hazard_id
+            LEFT JOIN risk.categories c ON c.category_id = r.category_id
+            LEFT JOIN org.assets a ON a.asset_id = r.asset_id
+            LEFT JOIN roles.users u ON u.user_id = r.risk_author_id
+            WHERE r.risk_id = @RiskId;
+            """;
+
+        const string linksSql = """
+            SELECT
+                rp.risk_process_id         AS RiskProcessId,
+                rp.process_id              AS ProcessId,
+                p.process_title            AS ProcessTitle,
+                d.directorate_title        AS Directorate,
+                rp.risk_processed_owner_id AS OwnerUserId,
+                u.user_fio                 AS OwnerName,
+                rp.is_risk_process_primary AS IsPrimary
+            FROM risk.risk_processes rp
+            LEFT JOIN org.processes p ON p.process_id = rp.process_id
+            LEFT JOIN org.directorates d ON d.directorate_id = p.directorate_id
+            LEFT JOIN roles.users u ON u.user_id = rp.risk_processed_owner_id
+            WHERE rp.risk_id = @RiskId
+            ORDER BY rp.is_risk_process_primary DESC, rp.risk_process_id;
+            """;
+
+        const string assessmentsSql = """
+            SELECT
+                a.assessment_id            AS AssessmentId,
+                a.likelihood_level_id      AS LikelihoodLevelId,
+                ll.likelihood_level_weight AS LikelihoodWeight,
+                ll.likelihood_level_name   AS Likelihood,
+                a.impact_level_id          AS ImpactLevelId,
+                il.impact_level_weight     AS ImpactWeight,
+                il.impact_level_name       AS Impact,
+                a.loss_amount              AS LossAmount,
+                a.downtime_weeks           AS DowntimeWeeks,
+                a.downtime_days            AS DowntimeDays,
+                a.downtime_hours           AS DowntimeHours,
+                a.downtime_total_hours     AS DowntimeTotalHours,
+                a.hourly_downtime_cost     AS HourlyDowntimeCost,
+                a.risk_score               AS RiskScore,
+                a.response_mode            AS ResponseMode,
+                a.is_active                AS IsActive,
+                a.created_by_id            AS CreatedById,
+                u.user_fio                 AS CreatedByName,
+                a.created_at               AS CreatedAt
+            FROM assessment.assessments a
+            JOIN assessment.likelihood_levels ll ON ll.likelihood_level_id = a.likelihood_level_id
+            JOIN assessment.impact_levels il ON il.impact_level_id = a.impact_level_id
+            LEFT JOIN roles.users u ON u.user_id = a.created_by_id
+            WHERE a.risk_id = @RiskId
+            ORDER BY a.assessment_id DESC;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var risk = await connection.QuerySingleOrDefaultAsync<RiskDetails>(
+            new CommandDefinition(riskSql, new { RiskId = riskId }, cancellationToken: cancellationToken));
+        if (risk is null)
+            return null;
+
+        risk.Processes = (await connection.QueryAsync<RiskLinkItem>(
+            new CommandDefinition(linksSql, new { RiskId = riskId }, cancellationToken: cancellationToken))).ToArray();
+        risk.Assessments = (await connection.QueryAsync<AssessmentItem>(
+            new CommandDefinition(assessmentsSql, new { RiskId = riskId }, cancellationToken: cancellationToken))).ToArray();
+
+        return risk;
+    }
 }

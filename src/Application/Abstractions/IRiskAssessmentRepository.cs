@@ -8,6 +8,7 @@ namespace Application.Abstractions
     public interface IRiskAssessmentRepository
     {
         Task<int> CreateAsync(RiskAssessment entity, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<LikelihoodLevelItem>> GetLikelihoodLevelsAsync(int methodId, CancellationToken cancellationToken = default);
         Task<bool> HasActiveAssessmentAsync(int riskId, CancellationToken cancellationToken = default);
         Task<ImpactRange?> GetImpactRangeForAmountAsync(decimal amount, CancellationToken cancellationToken = default);
         Task<AcceptanceThresholds?> GetAcceptanceThresholdsAsync(int methodId, CancellationToken cancellationToken = default);

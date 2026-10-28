@@ -52,6 +52,25 @@ public sealed class RiskService
         return risks;
     }
 
+    // GET /v1/risks/{id}
+    public async Task<RiskDetails> GetDetailsAsync(
+        int riskId,
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await _permissionService.HasRightAsync(userId, "view_risk", cancellationToken))
+            throw new RiskPermissionException("Отсутствует право view_risk.");
+
+        return await _riskRepository.GetDetailsAsync(riskId, cancellationToken)
+            ?? throw new RiskNotFoundException(riskId);
+    }
+
+    // GET /v1/assessment/likelihood-levels
+    public Task<IReadOnlyList<LikelihoodLevelItem>> GetLikelihoodLevelsAsync(
+        int methodId,
+        CancellationToken cancellationToken = default) =>
+        _riskAssessmentRepository.GetLikelihoodLevelsAsync(methodId, cancellationToken);
+
     // POST /v1/risks
     public async Task<int> CreateAsync(
         int authorId,

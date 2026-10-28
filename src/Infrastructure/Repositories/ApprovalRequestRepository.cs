@@ -173,4 +173,35 @@ public sealed class ApprovalRequestRepository : IApprovalRequestRepository
         public string? Reason { get; init; }
         public int? DecidedById { get; init; }
     }
+
+    public async Task<IReadOnlyList<ApprovalRequestItem>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                ar.approval_request_id     AS ApprovalRequestId,
+                ar.treatment_id            AS TreatmentId,
+                ar.approval_required_level AS ApprovalRequiredLevel,
+                ar.approval_request_status AS ApprovalRequestStatus,
+                ar.approval_created_by_id  AS CreatedById,
+                cu.user_fio                AS CreatedByName,
+                ar.approval_created        AS CreatedAt,
+                ar.approval_comment        AS Comment,
+                ar.approval_date           AS DecidedAt,
+                ar.approval_by_id          AS DecidedById,
+                du.user_fio                AS DecidedByName,
+                ar.approval_reason         AS Reason
+            FROM treatment.approval_requests ar
+            LEFT JOIN roles.users cu ON cu.user_id = ar.approval_created_by_id
+            LEFT JOIN roles.users du ON du.user_id = ar.approval_by_id
+            ORDER BY ar.approval_request_id DESC;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var rows = await connection.QueryAsync<ApprovalRequestItem>(
+            new CommandDefinition(sql, cancellationToken: cancellationToken));
+
+        return rows.ToArray();
+    }
 }

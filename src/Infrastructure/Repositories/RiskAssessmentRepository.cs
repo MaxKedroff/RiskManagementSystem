@@ -348,4 +348,27 @@ public sealed class RiskAssessmentRepository : IRiskAssessmentRepository
         public string? LikelihoodName { get; init; }
         public string? ImpactName { get; init; }
     }
+
+    public async Task<IReadOnlyList<LikelihoodLevelItem>> GetLikelihoodLevelsAsync(
+        int methodId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT
+                likelihood_level_id     AS LikelihoodLevelId,
+                method_id               AS MethodId,
+                likelihood_level_name   AS LikelihoodLevelName,
+                likelihood_level_weight AS LikelihoodLevelWeight
+            FROM assessment.likelihood_levels
+            WHERE method_id = @MethodId
+            ORDER BY likelihood_level_weight;
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        var rows = await connection.QueryAsync<LikelihoodLevelItem>(
+            new CommandDefinition(sql, new { MethodId = methodId }, cancellationToken: cancellationToken));
+
+        return rows.ToArray();
+    }
 }

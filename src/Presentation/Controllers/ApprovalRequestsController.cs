@@ -1,3 +1,4 @@
+using Application.Abstractions;
 using Application.Treatment;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,6 +19,27 @@ public sealed class ApprovalRequestsController : ControllerBase
     {
         _service = service;
         _logger = logger;
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(ApprovalRequestItem[]), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _service.GetApprovalRequestsAsync(GetUserId(), cancellationToken));
+        }
+        catch (TreatmentPermissionException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list approval requests.");
+            return Problem(statusCode: 500, title: "Внутренняя ошибка сервера.");
+        }
     }
 
     [HttpPost("{id:int}/approve")]

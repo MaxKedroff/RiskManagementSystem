@@ -46,6 +46,32 @@ public sealed class RisksController : ControllerBase
         }
     }
 
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(RiskDetails), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return Ok(await _service.GetDetailsAsync(id, GetUserId(), cancellationToken));
+        }
+        catch (RiskNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (RiskPermissionException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get risk {RiskId}.", id);
+            return Problem(statusCode: 500, title: "Внутренняя ошибка сервера.");
+        }
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(CreateRiskResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
