@@ -94,6 +94,12 @@ public sealed class RiskService
                 throw new RiskValidationException($"Процесс с ID {processId} неактивен.");
             }
 
+            if (!await _permissionService.IsAdminAsync(authorId, cancellationToken)
+                && !await _permissionService.IsInProcessDirectorateAsync(authorId, processId, cancellationToken))
+            {
+                throw new RiskPermissionException("Риск создаётся для процесса своей дирекции.");
+            }
+
             processOwnerInfos.Add(ownerInfo);
         }
 

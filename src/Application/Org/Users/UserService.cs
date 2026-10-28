@@ -131,6 +131,11 @@ public sealed class UserService
         if (isUserActive == false && await _repository.IsLastAdminAsync(id, cancellationToken))
             throw new UserLastAdminException();
 
+        // 12 §5.1: an executor of a treatment in work cannot be blocked until it is reassigned
+        if (isUserActive == false && await _repository.IsActiveExecutorAsync(id, cancellationToken))
+            throw new UserValidationException(
+                "Пользователь назначен исполнителем мер «Ожидает выполнения» или «В работе». Сначала замените исполнителя.");
+
         var update = new UserUpdate
         {
             Id = id,

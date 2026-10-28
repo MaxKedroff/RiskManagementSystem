@@ -36,4 +36,7 @@ public sealed class UserPermissionService : IUserPermissionService
 
     public Task<bool> IsValidExecutorAsync(int assigneeUserId, int treatmentId, CancellationToken cancellationToken = default) =>
         _repository.IsValidExecutorAsync(assigneeUserId, treatmentId, cancellationToken);
+
+    public Task<bool> IsInProcessDirectorateAsync(int userId, int processId, CancellationToken cancellationToken = default) =>
+        _repository.IsInProcessDirectorateAsync(userId, processId, cancellationToken);
 }

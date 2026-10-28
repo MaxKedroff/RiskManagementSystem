@@ -314,6 +314,25 @@ public sealed class UserRepository : IUserRepository
                 cancellationToken: cancellationToken));
     }
 
+    public async Task<bool> IsActiveExecutorAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        const string sql = """
+            SELECT EXISTS (
+                SELECT 1
+                FROM treatment.treatments
+                WHERE treatment_assigned_id = @UserId
+                  AND treatment_status IN ('AwaitingExecution', 'InProgress')
+            );
+            """;
+
+        using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);
+
+        return await connection.ExecuteScalarAsync<bool>(
+            new CommandDefinition(sql, new { UserId = userId }, cancellationToken: cancellationToken));
+    }
+
     public async Task<bool> PersonExistsAsync(
         int personId,
         CancellationToken cancellationToken = default)

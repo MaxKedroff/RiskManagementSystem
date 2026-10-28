@@ -20,6 +20,7 @@ public interface IUserRepository
     Task<bool> RoleExistsAsync(int roleId, CancellationToken cancellationToken = default);
 
     Task<bool> IsLastAdminAsync(int userId, CancellationToken cancellationToken = default);
+    Task<bool> IsActiveExecutorAsync(int userId, CancellationToken cancellationToken = default);
 
     Task<bool> PersonExistsAsync(int personId, CancellationToken cancellationToken = default);
 

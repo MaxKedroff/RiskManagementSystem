@@ -160,6 +160,21 @@ public sealed class UserPermissionRepository : IUserPermissionRepository
             );
             """, new { AssigneeId = assigneeUserId, TreatmentId = treatmentId }, cancellationToken);
 
+    public Task<bool> IsInProcessDirectorateAsync(
+        int userId,
+        int processId,
+        CancellationToken cancellationToken = default) =>
+        ExistsAsync("""
+            SELECT EXISTS (
+                SELECT 1
+                FROM org.processes p
+                JOIN org.persons pe ON pe.directorate_id = p.directorate_id
+                WHERE p.process_id = @ProcessId
+                  AND pe.user_id = @UserId
+                  AND pe.is_person_active = TRUE
+            );
+            """, new { UserId = userId, ProcessId = processId }, cancellationToken);
+
     private async Task<bool> ExistsAsync(string sql, object parameters, CancellationToken cancellationToken)
     {
         using var connection = await _connectionFactory.CreateOpenConnectionAsync(cancellationToken);

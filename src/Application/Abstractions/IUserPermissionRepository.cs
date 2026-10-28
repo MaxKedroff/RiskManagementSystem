@@ -13,5 +13,6 @@ namespace Application.Abstractions
         Task<bool> IsTreatmentOwnerAsync(int userId, int treatmentId, CancellationToken cancellationToken = default);
         Task<bool> CanActAtLevelAsync(int userId, string level, int processId, CancellationToken cancellationToken = default);
         Task<bool> IsValidExecutorAsync(int assigneeUserId, int treatmentId, CancellationToken cancellationToken = default);
+        Task<bool> IsInProcessDirectorateAsync(int userId, int processId, CancellationToken cancellationToken = default);
     }
 }
