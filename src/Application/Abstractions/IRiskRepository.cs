@@ -34,5 +34,8 @@ namespace Application.Abstractions
         string RiskStatus,
         string? AcceptanceLevel,
         int[]? RiskProcessIds = null,
-        string? ResponseMode = null);
+        string? ResponseMode = null,
+        decimal? LossAmount = null,
+        DateTimeOffset? CreatedAt = null,
+        DateTimeOffset? ClosedAt = null);
 }

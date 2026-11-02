@@ -10,6 +10,8 @@ public sealed class RiskDetails
     public string RiskStatus { get; init; } = string.Empty;
     public string? AcceptanceLevel { get; init; }
     public string? CloseReason { get; init; }
+    public DateTimeOffset CreatedAt { get; init; }
+    public DateTimeOffset? ClosedAt { get; init; }
     public int HazardId { get; init; }
     public string? Hazard { get; init; }
     public int CategoryId { get; init; }

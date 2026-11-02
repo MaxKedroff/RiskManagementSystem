@@ -136,7 +136,8 @@ public sealed class RiskRepository : IRiskRepository
         const string sql = """
             UPDATE risk.risks
             SET risk_status = @Status,
-                risk_close_reason = @Reason
+                risk_close_reason = @Reason,
+                risk_closed_at = CASE WHEN @Status = 'Closed' THEN now() ELSE NULL END
             WHERE risk_id = @RiskId;
             """;
 
@@ -230,7 +231,10 @@ public sealed class RiskRepository : IRiskRepository
                 al.likelihood_level_name AS LikelihoodName,
                 il.impact_level_name AS ImpactName,
                 a2.risk_score AS RiskScore,
-                a2.response_mode AS ResponseMode
+                a2.response_mode AS ResponseMode,
+                a2.loss_amount AS LossAmount,
+                r.risk_created_at AS CreatedAt,
+                r.risk_closed_at AS ClosedAt
             FROM risk.risks r
             LEFT JOIN org.assets a ON r.asset_id = a.asset_id
             LEFT JOIN risk.hazards h ON r.hazard_id = h.hazard_id
@@ -273,7 +277,10 @@ public sealed class RiskRepository : IRiskRepository
                 first.RiskStatus,
                 first.AcceptanceLevel,
                 processInfo.RiskProcessIds,
-                first.ResponseMode));
+                first.ResponseMode,
+                first.LossAmount,
+                first.CreatedAt,
+                first.ClosedAt));
         }
 
         return results.ToArray();
@@ -395,6 +402,9 @@ public sealed class RiskRepository : IRiskRepository
         public string? LikelihoodName { get; init; }
         public string? ImpactName { get; init; }
         public int? RiskScore { get; init; }
+        public decimal? LossAmount { get; init; }
+        public DateTimeOffset CreatedAt { get; init; }
+        public DateTimeOffset? ClosedAt { get; init; }
     }
 
     private sealed class ProcessInfoRow
@@ -417,6 +427,8 @@ public sealed class RiskRepository : IRiskRepository
                 r.risk_status           AS RiskStatus,
                 r.risk_acceptance_level AS AcceptanceLevel,
                 r.risk_close_reason     AS CloseReason,
+                r.risk_created_at       AS CreatedAt,
+                r.risk_closed_at        AS ClosedAt,
                 r.hazard_id             AS HazardId,
                 h.hazard_name           AS Hazard,
                 r.category_id           AS CategoryId,
