@@ -234,7 +234,8 @@ public sealed class RiskRepository : IRiskRepository
                 a2.response_mode AS ResponseMode,
                 a2.loss_amount AS LossAmount,
                 r.risk_created_at AS CreatedAt,
-                r.risk_closed_at AS ClosedAt
+                r.risk_closed_at AS ClosedAt,
+                r.risk_close_reason AS CloseReason
             FROM risk.risks r
             LEFT JOIN org.assets a ON r.asset_id = a.asset_id
             LEFT JOIN risk.hazards h ON r.hazard_id = h.hazard_id
@@ -280,7 +281,8 @@ public sealed class RiskRepository : IRiskRepository
                 first.ResponseMode,
                 first.LossAmount,
                 first.CreatedAt,
-                first.ClosedAt));
+                first.ClosedAt,
+                first.CloseReason));
         }
 
         return results.ToArray();
@@ -405,6 +407,7 @@ public sealed class RiskRepository : IRiskRepository
         public decimal? LossAmount { get; init; }
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset? ClosedAt { get; init; }
+        public string? CloseReason { get; init; }
     }
 
     private sealed class ProcessInfoRow

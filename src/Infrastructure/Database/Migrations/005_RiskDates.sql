@@ -9,3 +9,12 @@ UPDATE risk.risks r
 SET risk_created_at = a.first_at
 FROM (SELECT risk_id, min(created_at) AS first_at FROM assessment.assessments GROUP BY risk_id) a
 WHERE a.risk_id = r.risk_id AND a.first_at < r.risk_created_at;
+
+-- Risks closed before this migration: closing writes a «Риск закрыт: …» comment, take its time
+UPDATE risk.risks r
+SET risk_closed_at = COALESCE(
+    (SELECT max(c.comment_created) FROM risk.comments c
+      WHERE c.comment_entity_type = 'Risk' AND c.comment_entity_id = r.risk_id
+        AND c.comment_text LIKE 'Риск закрыт:%'),
+    r.risk_created_at)
+WHERE r.risk_status = 'Closed' AND r.risk_closed_at IS NULL;
