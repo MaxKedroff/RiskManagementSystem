@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/roles")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class RolesController : ControllerBase
 {
     private readonly RoleService _service;
@@ -71,6 +71,7 @@ public sealed class RolesController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}/rights")]
     [ProducesResponseType(typeof(UpdateRoleRightsResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -111,7 +112,7 @@ public sealed class RolesController : ControllerBase
 
 [ApiController]
 [Route("v1/rights")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class RightsController : ControllerBase
 {
     private readonly RoleService _service;

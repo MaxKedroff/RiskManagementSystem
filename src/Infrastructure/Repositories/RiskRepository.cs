@@ -235,7 +235,9 @@ public sealed class RiskRepository : IRiskRepository
                 a2.loss_amount AS LossAmount,
                 r.risk_created_at AS CreatedAt,
                 r.risk_closed_at AS ClosedAt,
-                r.risk_close_reason AS CloseReason
+                r.risk_close_reason AS CloseReason,
+                a2.created_at AS AssessedAt,
+                (SELECT MIN(fa.created_at) FROM assessment.assessments fa WHERE fa.risk_id = r.risk_id) AS FirstAssessedAt
             FROM risk.risks r
             LEFT JOIN org.assets a ON r.asset_id = a.asset_id
             LEFT JOIN risk.hazards h ON r.hazard_id = h.hazard_id
@@ -282,7 +284,9 @@ public sealed class RiskRepository : IRiskRepository
                 first.LossAmount,
                 first.CreatedAt,
                 first.ClosedAt,
-                first.CloseReason));
+                first.CloseReason,
+                first.AssessedAt,
+                first.FirstAssessedAt));
         }
 
         return results.ToArray();
@@ -409,6 +413,8 @@ public sealed class RiskRepository : IRiskRepository
         public DateTimeOffset CreatedAt { get; init; }
         public DateTimeOffset? ClosedAt { get; init; }
         public string? CloseReason { get; init; }
+        public DateTimeOffset? AssessedAt { get; init; }
+        public DateTimeOffset? FirstAssessedAt { get; init; }
     }
 
     private sealed class ProcessInfoRow

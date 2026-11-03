@@ -38,5 +38,7 @@ namespace Application.Abstractions
         decimal? LossAmount = null,
         DateTimeOffset? CreatedAt = null,
         DateTimeOffset? ClosedAt = null,
-        string? CloseReason = null);
+        string? CloseReason = null,
+        DateTimeOffset? AssessedAt = null,
+        DateTimeOffset? FirstAssessedAt = null);
 }

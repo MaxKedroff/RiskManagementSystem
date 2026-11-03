@@ -6,7 +6,7 @@ namespace Presentation.Controllers;
 
 [ApiController]
 [Route("v1/users")]
-[Authorize(Roles = "ADMIN")]
+[Authorize]
 public sealed class UsersController : ControllerBase
 {
     private readonly UserService _service;
@@ -20,6 +20,7 @@ public sealed class UsersController : ControllerBase
         _logger = logger;
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost]
     [ProducesResponseType(typeof(CreateUserResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -120,6 +121,7 @@ public sealed class UsersController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPut("{id:int}")]
     [ProducesResponseType(typeof(UpdateUserResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -160,6 +162,7 @@ public sealed class UsersController : ControllerBase
         }
     }
 
+    [Authorize(Roles = "ADMIN")]
     [HttpPost("{id:int}/reset-password")]
     [ProducesResponseType(typeof(ResetPasswordResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
