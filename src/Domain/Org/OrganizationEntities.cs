@@ -71,9 +71,9 @@ public sealed class Person : Entity
 
     public static Person Rehydrate(
         int id,
-        int userId,
-        int directorateId,
-        string position,
+        int? userId,
+        int? directorateId,
+        string? position,
         bool isActive)
     {
         var person = new Person(userId, directorateId, position)

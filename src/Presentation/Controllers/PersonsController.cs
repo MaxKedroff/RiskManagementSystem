@@ -168,5 +168,5 @@ public sealed record PersonResponse(
     int PersonId,
     int? UserId,
     int? DirectorateId,
-    string PersonPosition,
+    string? PersonPosition,
     bool IsPersonActive);
