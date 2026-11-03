@@ -364,6 +364,7 @@ public sealed class RiskRepository : IRiskRepository
             "InTreatment" => RiskStatus.InTreatment,
             "Accepted" => RiskStatus.Accepted,
             "Closed" => RiskStatus.Closed,
+            "AwaitingReassessment" => RiskStatus.AwaitingReassessment,
             _ => throw new InvalidOperationException($"Unknown risk status: {status}")
         };
 
