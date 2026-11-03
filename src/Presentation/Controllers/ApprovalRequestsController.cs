@@ -161,6 +161,6 @@ public sealed class ApprovalRequestsController : ControllerBase
 }
 
 // Request DTOs
-public sealed record ApproveRequest(string ApprovalComment);
+public sealed record ApproveRequest(string? ApprovalComment);
 public sealed record RejectRequest(string ApprovalReason);
 public sealed record RevokeRequest(string RevokeReason);

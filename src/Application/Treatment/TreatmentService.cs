@@ -185,7 +185,7 @@ public sealed class TreatmentService
     public async Task<ApproveResponse> ApproveAsync(
         int approvalRequestId,
         int userId,
-        string approvalComment,
+        string? approvalComment,
         CancellationToken cancellationToken = default)
     {
         if (!await _permissionService.HasRightAsync(userId, "approve_treatment", cancellationToken))
