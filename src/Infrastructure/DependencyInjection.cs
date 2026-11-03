@@ -44,6 +44,7 @@ namespace Infrastructure
             services.AddScoped<IRiskAssessmentRepository, RiskAssessmentRepository>();
             services.AddScoped<IUserPermissionRepository, UserPermissionRepository>();
             services.AddScoped<ICommentRepository, CommentRepository>();
+            services.AddScoped<IRiskEventRepository, RiskEventRepository>();
             services.AddScoped<ITreatmentRepository, TreatmentRepository>();
             services.AddScoped<IApprovalRequestRepository, ApprovalRequestRepository>();
             services.AddScoped<IImpactLevelRepository, ImpactLevelRepository>();

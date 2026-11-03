@@ -16,6 +16,7 @@ public sealed class RiskService
     private readonly IProcessRepository _processRepository;
     private readonly ICommentRepository _commentRepository;
     private readonly ITreatmentRepository _treatmentRepository;
+    private readonly IRiskEventRepository _eventRepository;
     private readonly int _assessmentMethodId = 1; // Default assessment method
 
     public RiskService(
@@ -26,7 +27,8 @@ public sealed class RiskService
         IAssetRepository assetRepository,
         IProcessRepository processRepository,
         ICommentRepository commentRepository,
-        ITreatmentRepository treatmentRepository)
+        ITreatmentRepository treatmentRepository,
+        IRiskEventRepository eventRepository)
     {
         _riskRepository = riskRepository;
         _riskProcessRepository = riskProcessRepository;
@@ -36,7 +38,19 @@ public sealed class RiskService
         _processRepository = processRepository;
         _commentRepository = commentRepository;
         _treatmentRepository = treatmentRepository;
+        _eventRepository = eventRepository;
     }
+
+    // Risk history (the card's «История» and the decision journal); a NULL author is the system.
+    private Task LogAsync(int riskId, string kind, string text, int? userId, CancellationToken cancellationToken) =>
+        _eventRepository.AddAsync(riskId, kind, text, userId, cancellationToken);
+
+    // The UI names acceptance levels in capitals: OWNER, DIRECTOR, CEO, TREATMENT_REQUIRED.
+    private static string LevelCode(string level) =>
+        level == "TreatmentRequired" ? "TREATMENT_REQUIRED" : level.ToUpperInvariant();
+
+    private async Task<string> ProcessTitleAsync(int processId, CancellationToken cancellationToken) =>
+        (await _processRepository.GetByIdAsync(processId, cancellationToken))?.Title ?? $"процесс {processId}";
 
     // GET /v1/risks
     public async Task<IReadOnlyList<RiskListItem>> GetAllAsync(
@@ -159,6 +173,8 @@ public sealed class RiskService
             await _riskProcessRepository.CreateAsync(riskProcess, cancellationToken);
         }
 
+        await LogAsync(riskId, "create", "Риск зарегистрирован в статусе «Черновик»", authorId, cancellationToken);
+
         return riskId;
     }
 
@@ -219,6 +235,8 @@ public sealed class RiskService
         risk.ChangeDescription(normalizedDescription);
 
         await _riskRepository.UpdateAsync(risk, cancellationToken);
+
+        await LogAsync(riskId, "create", "Паспорт черновика отредактирован", userId, cancellationToken);
 
         return riskId;
     }
@@ -350,6 +368,9 @@ public sealed class RiskService
         // Transition risk to "Open" status
         await _riskRepository.UpdateStatusAsync(riskId, "Open", cancellationToken);
         await _riskRepository.SetAcceptanceLevelAsync(riskId, acceptanceLevel, cancellationToken);
+        await LogAsync(riskId, "assess",
+            $"Первичная оценка: L {likelihoodWeight} × I {impactWeight} = R {riskScore}, уровень {LevelCode(acceptanceLevel)}. Статус «Активен»",
+            userId, cancellationToken);
 
         return new AssessRiskResponse(
             assessmentId,
@@ -411,6 +432,8 @@ public sealed class RiskService
         // Set responseMode = "accept" and status = "Accepted"
         await _riskAssessmentRepository.UpdateResponseModeAsync(assessmentId, "accept", cancellationToken);
         await _riskRepository.UpdateStatusAsync(riskId, "Accepted", cancellationToken);
+        await LogAsync(riskId, "mode",
+            $"Риск принят на уровне {LevelCode(risk.AcceptanceLevel.Value.ToString())}. Статус «Принят»", userId, cancellationToken);
 
         return new AcceptRiskResponse(riskId, "Accepted", "accept");
     }
@@ -440,6 +463,11 @@ public sealed class RiskService
 
         var assessmentId = await GetActiveAssessmentIdAsync(riskId, cancellationToken);
         await _riskAssessmentRepository.UpdateResponseModeAsync(assessmentId, "treat", cancellationToken);
+        await LogAsync(riskId, "mode",
+            risk.AcceptanceLevel == Domain.Risk.RiskAcceptanceLevel.TreatmentRequired
+                ? "Выбран режим «Обработать»: риск уровня TREATMENT_REQUIRED принять нельзя"
+                : "Выбран режим «Обработать»",
+            userId, cancellationToken);
 
         return new TreatRiskResponse(riskId, "treat");
     }
@@ -519,6 +547,12 @@ public sealed class RiskService
 
         var assessmentId = await GetActiveAssessmentIdAsync(riskId, cancellationToken);
         await _riskAssessmentRepository.UpdateResponseModeAsync(assessmentId, "split", cancellationToken);
+        var names = new List<string>();
+        foreach (var processId in request.ProcessIds)
+            names.Add($"«{await ProcessTitleAsync(processId, cancellationToken)}»");
+        await LogAsync(riskId, "mode",
+            $"Риск разделён между процессами: {string.Join(", ", names)}. Основной — «{await ProcessTitleAsync(request.PrimaryProcessId, cancellationToken)}»",
+            userId, cancellationToken);
 
         return new SplitRiskResponse(riskId, "split");
     }
@@ -586,6 +620,9 @@ public sealed class RiskService
 
         // Set status = "AwaitingReassessment"
         await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
+        await LogAsync(riskId, "mode",
+            $"Риск передан в процесс «{await ProcessTitleAsync(request.NewProcessId, cancellationToken)}». Нужна оценка его владельца",
+            userId, cancellationToken);
 
         return new TransferRiskResponse(riskId, "transfer", "AwaitingReassessment");
     }
@@ -711,6 +748,9 @@ public sealed class RiskService
         var newStatus = "Open";
         await _riskRepository.UpdateStatusAsync(riskId, newStatus, cancellationToken);
         await _riskRepository.SetAcceptanceLevelAsync(riskId, acceptanceLevel, cancellationToken);
+        await LogAsync(riskId, "assess",
+            $"Переоценка: L {likelihoodWeight} × I {impactWeight} = R {riskScore}, уровень {LevelCode(acceptanceLevel)}. Статус «Активен»",
+            userId, cancellationToken);
 
         return new ReassessRiskResponse(
             assessmentId,
@@ -755,10 +795,12 @@ public sealed class RiskService
                 "Risk",
                 riskId,
                 cancellationToken);
+            await LogAsync(riskId, "system", "Риск возвращён из архива. Нужна новая оценка владельца процесса", userId, cancellationToken);
         }
         else
         {
             await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
+            await LogAsync(riskId, "system", "Риск отправлен на переоценку по решению владельца", userId, cancellationToken);
         }
 
         return new ResetReassessmentResponse(riskId, "AwaitingReassessment");
@@ -809,6 +851,8 @@ public sealed class RiskService
         // Set risk to AwaitingReassessment
         await _riskRepository.ClearAcceptanceLevelAsync(riskId, cancellationToken);
         await _riskRepository.SetAwaitingReassessmentStatusAsync(riskId, cancellationToken);
+        await LogAsync(riskId, "system",
+            "Цикл мер завершён: текущая оценка деактивирована, риск переведён в «Ожидает переоценки»", null, cancellationToken);
 
         return new CycleCompletionResult(
             true,
@@ -852,6 +896,7 @@ public sealed class RiskService
 
         // Atomically save status "Closed", closeReason, and create system comment
         await _riskRepository.UpdateRiskStatusAndReasonAsync(riskId, "Closed", reason, cancellationToken);
+        await LogAsync(riskId, "system", $"Риск закрыт. Причина: {reason.TrimEnd('.')}", userId, cancellationToken);
         await _commentRepository.CreateAsync(
             userId,
             $"Риск закрыт: {reason}",

@@ -12,6 +12,7 @@ public sealed class TreatmentService
     private readonly IProcessRepository _processRepository;
     private readonly ITreatmentApprovalSettingsRepository _approvalSettingsRepository;
     private readonly RiskService _riskService;
+    private readonly IRiskEventRepository _eventRepository;
 
     public TreatmentService(
         ITreatmentRepository treatmentRepository,
@@ -19,7 +20,8 @@ public sealed class TreatmentService
         IUserPermissionService permissionService,
         IProcessRepository processRepository,
         ITreatmentApprovalSettingsRepository approvalSettingsRepository,
-        RiskService riskService)
+        RiskService riskService,
+        IRiskEventRepository eventRepository)
     {
         _treatmentRepository = treatmentRepository;
         _approvalRequestRepository = approvalRequestRepository;
@@ -27,7 +29,23 @@ public sealed class TreatmentService
         _processRepository = processRepository;
         _approvalSettingsRepository = approvalSettingsRepository;
         _riskService = riskService;
+        _eventRepository = eventRepository;
     }
+
+    // Measure events go to the history of their risk (the card's «История»).
+    private async Task LogAsync(int riskProcessId, string kind, string text, int userId, CancellationToken cancellationToken)
+    {
+        if (await _treatmentRepository.GetProcessRiskIdAsync(riskProcessId, cancellationToken) is int riskId)
+            await _eventRepository.AddAsync(riskId, kind, text, userId, cancellationToken);
+    }
+
+    private static string MeasureId(int id) => $"М-{id:D4}";
+
+    private static string LevelCode(ApprovalLevel level) => level.ToString().ToUpperInvariant();
+
+    // Grouped like the UI (1 500 000 ₽) without depending on the server's culture data.
+    private static string Money(decimal value) =>
+        value.ToString("#,0", new System.Globalization.NumberFormatInfo { NumberGroupSeparator = "\u00a0" }) + " ₽";
 
     // POST /v1/treatments
     public async Task<int> CreateAsync(
@@ -66,7 +84,9 @@ public sealed class TreatmentService
             request.TreatmentCostPlan,
             userId);
 
-        return await _treatmentRepository.CreateAsync(treatment, cancellationToken);
+        var treatmentId = await _treatmentRepository.CreateAsync(treatment, cancellationToken);
+        await LogAsync(request.RiskProcessId, "measure", $"Создана мера {MeasureId(treatmentId)} «{treatment.Title}» в статусе «Черновик»", userId, cancellationToken);
+        return treatmentId;
     }
 
     // PUT /v1/treatments/{id}
@@ -98,6 +118,7 @@ public sealed class TreatmentService
             treatment.SetActualCost(request.TreatmentCostAct.Value);
 
         await _treatmentRepository.UpdateAsync(treatment, cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"Мера {MeasureId(treatmentId)} отредактирована", userId, cancellationToken);
         return treatmentId;
     }
 
@@ -177,6 +198,7 @@ public sealed class TreatmentService
 
         treatment.SubmitForApproval();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "PendingApproval", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "approval", $"{MeasureId(treatmentId)} отправлена на согласование: {Money(treatment.PlannedCost)}, уровень {LevelCode(approvalLevel)}", userId, cancellationToken);
 
         return new SubmitApprovalResponse(approvalRequestId, approvalLevel.ToString(), "PendingApproval");
     }
@@ -209,6 +231,7 @@ public sealed class TreatmentService
         approvalRequest.Approve(userId, approvalComment);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, "Approved", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "approval", $"{MeasureId(treatment.Id)} согласована на уровне {LevelCode(approvalRequest.RequiredLevel)}", userId, cancellationToken);
 
         return new ApproveResponse(approvalRequestId, "Approved", "Approved");
     }
@@ -240,6 +263,7 @@ public sealed class TreatmentService
         approvalRequest.Reject(userId, approvalReason);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, "Planned", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "approval", $"{MeasureId(treatment.Id)} отклонена на уровне {LevelCode(approvalRequest.RequiredLevel)}. Причина: {approvalReason.Trim()}", userId, cancellationToken);
 
         return new RejectResponse(approvalRequestId, "Rejected", "Planned");
     }
@@ -273,6 +297,7 @@ public sealed class TreatmentService
         approvalRequest.Revoke(userId, revokeReason);
         await _approvalRequestRepository.UpdateAsync(approvalRequest, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatment.Id, treatment.Status.ToString(), cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "approval", $"Согласование {MeasureId(treatment.Id)} отозвано администратором. Причина: {revokeReason.Trim()}", userId, cancellationToken);
 
         if (treatment.Status == TreatmentStatus.Cancelled)
         {
@@ -328,6 +353,7 @@ public sealed class TreatmentService
         treatment.AssignTo(request.AssigneeId);
         await _treatmentRepository.UpdateAssigneeAsync(treatmentId, request.AssigneeId, userId, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "AwaitingExecution", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)} передана к выполнению", userId, cancellationToken);
 
         return new ExecuteResponse(treatmentId, "AwaitingExecution", 0);
     }
@@ -358,6 +384,7 @@ public sealed class TreatmentService
         await EnsureExecutorAsync(request.AssigneeId, treatmentId, cancellationToken);
 
         await _treatmentRepository.UpdateAssigneeAsync(treatmentId, request.AssigneeId, userId, cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)}: назначен другой исполнитель", userId, cancellationToken);
 
         return new ReplaceAssigneeResponse(treatmentId, request.AssigneeId);
     }
@@ -382,6 +409,7 @@ public sealed class TreatmentService
             throw new TreatmentValidationException("Назначение отсутствует.");
 
         await _treatmentRepository.UpdateAssigneeAsync(treatmentId, null, userId, cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)}: исполнитель снят", userId, cancellationToken);
 
         return new RemoveAssigneeResponse(treatmentId);
     }
@@ -413,6 +441,7 @@ public sealed class TreatmentService
 
         treatment.StartExecution();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "InProgress", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)} взята в работу", userId, cancellationToken);
 
         return new StartResponse(treatmentId, "InProgress");
     }
@@ -435,6 +464,7 @@ public sealed class TreatmentService
 
         treatment.Hold();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "Hold", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)} приостановлена (Холд)", userId, cancellationToken);
 
         return new HoldResponse(treatmentId, "Hold");
     }
@@ -480,6 +510,7 @@ public sealed class TreatmentService
 
         treatment.Resume();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "InProgress", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)} возобновлена", userId, cancellationToken);
 
         return new ResumeResponse(treatmentId, "InProgress");
     }
@@ -522,6 +553,7 @@ public sealed class TreatmentService
         treatment.Complete(request.TreatmentCostAct);
         await _treatmentRepository.UpdateAsync(treatment, cancellationToken);
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "Completed", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "done", $"{MeasureId(treatmentId)} выполнена: факт {Money(request.TreatmentCostAct)} при плане {Money(treatment.PlannedCost)}", userId, cancellationToken);
 
         if (hasOtherActiveTreatments)
         {
@@ -563,6 +595,7 @@ public sealed class TreatmentService
         var wasDraft = treatment.Status == TreatmentStatus.Planned;
         treatment.CancelExecution();
         await _treatmentRepository.UpdateStatusAsync(treatmentId, "Cancelled", cancellationToken);
+        await LogAsync(treatment.RiskProcessId, "measure", $"{MeasureId(treatmentId)} отменена", userId, cancellationToken);
 
         if (wasDraft)
         {
